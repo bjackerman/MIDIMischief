@@ -229,6 +229,7 @@ class Profile(BaseModel):
 
     device_match: DeviceMatch = Field(default_factory=DeviceMatch)
     layers: dict[int, Layer] = Field(default_factory=dict)
+    default_layer: int = 0
     global_settings: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")

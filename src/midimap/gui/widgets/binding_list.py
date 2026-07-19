@@ -1,7 +1,8 @@
 """Binding list widget — sortable, editable table of :class:`Mapping`.
 
-M4 ships a read-only display + a "New binding" button. Cell editing
-arrives in M5 alongside the profile I/O wizard.
+M5 adds per-layer view switching: the model keeps a ``layer_idx`` and
+re-collects on change. The view forwards ``doubleClicked`` to its
+parent so the wizard can pre-fill on edit.
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -25,23 +26,32 @@ log = logging.getLogger(__name__)
 
 
 class BindingListModel(QAbstractTableModel):
-    """Read-only model over a Profile's layer-0 mappings."""
+    """Read-only model over a Profile's mappings for a chosen layer."""
 
     HEADERS = ("ID", "Input control", "Event", "Action", "Description")
 
-    def __init__(self, profile: Profile, parent=None) -> None:  # type: ignore[no-untyped-def]
+    def __init__(self, profile: Profile, layer_idx: int = 0, parent=None) -> None:  # type: ignore[no-untyped-def]
         super().__init__(parent)
         self._profile = profile
-        self._mappings = self._collect(profile)
+        self._layer_idx = layer_idx
+        self._mappings: list[Mapping] = self._collect(profile, layer_idx)
 
     @staticmethod
-    def _collect(profile: Profile) -> list[Mapping]:
-        return profile.all_mappings(0)
+    def _collect(profile: Profile, layer_idx: int) -> list[Mapping]:
+        return profile.all_mappings(layer_idx)
 
     def set_profile(self, profile: Profile) -> None:
         self.beginResetModel()
         self._profile = profile
-        self._mappings = self._collect(profile)
+        self._mappings = self._collect(profile, self._layer_idx)
+        self.endResetModel()
+
+    def set_layer(self, layer_idx: int) -> None:
+        if layer_idx == self._layer_idx:
+            return
+        self.beginResetModel()
+        self._layer_idx = layer_idx
+        self._mappings = self._collect(self._profile, layer_idx)
         self.endResetModel()
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: B008
@@ -82,9 +92,14 @@ class BindingListModel(QAbstractTableModel):
 
 
 class BindingListView(QWidget):
-    """A QTableView with a 'New binding' button above it."""
+    """A QTableView with a 'New binding' button above it.
 
-    new_binding_requested = __import__("PySide6.QtCore", fromlist=["Signal"]).Signal()
+    The view's ``doubleClicked`` signal is forwarded so the parent
+    can re-open the binding wizard pre-filled.
+    """
+
+    new_binding_requested = Signal()
+    doubleClicked = Signal(QModelIndex)
 
     def __init__(self, profile: Profile, parent=None) -> None:  # type: ignore[no-untyped-def]
         super().__init__(parent)
@@ -95,6 +110,7 @@ class BindingListView(QWidget):
         self._table.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
+        self._table.doubleClicked.connect(self.doubleClicked.emit)
         hh = self._table.horizontalHeader()
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)

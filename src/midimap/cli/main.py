@@ -5,7 +5,8 @@ from __future__ import annotations
 import argparse
 
 from .. import __version__
-from . import gui, monitor, run
+from . import diff as diff_cmd
+from . import export_import, gui, monitor, run, validate
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -18,6 +19,10 @@ def build_parser() -> argparse.ArgumentParser:
     monitor.add_subparser(sub)
     run.add_subparser(sub)
     gui.add_subparser(sub)
+    validate.add_subparser(sub)
+    diff_cmd.add_subparser(sub)
+    export_import.add_export_subparser(sub)
+    export_import.add_import_subparser(sub)
     return p
 
 
