@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 
 from .. import __version__
-from . import monitor, run
+from . import gui, monitor, run
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -17,6 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command")
     monitor.add_subparser(sub)
     run.add_subparser(sub)
+    gui.add_subparser(sub)
     return p
 
 
