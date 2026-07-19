@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "name": "Maschine Mikro — Default",
+  "description": "Pads 1-4 fire Ctrl+1..Ctrl+4; knob 1 does nothing yet.",
+  "device_match": {
+    "kind": "midi",
+    "name_contains": "Maschine Mikro"
+  },
+  "global_settings": {
+    "log_level": "info",
+    "dry_run": false
+  },
+  "layers": {
+    "0": {
+      "name": "Default",
+      "mappings": [
+        {
+          "id": "pad1_select",
+          "input": { "control": "note:36", "event": "press" },
+          "action": { "type": "keyboard", "keys": ["ctrl", "1"] }
+        },
+        {
+          "id": "pad2_select",
+          "input": { "control": "note:37", "event": "press" },
+          "action": { "type": "keyboard", "keys": ["ctrl", "2"] }
+        },
+        {
+          "id": "pad3_select",
+          "input": { "control": "note:38", "event": "press" },
+          "action": { "type": "keyboard", "keys": ["ctrl", "3"] }
+        },
+        {
+          "id": "pad4_select",
+          "input": { "control": "note:39", "event": "press" },
+          "action": { "type": "keyboard", "keys": ["ctrl", "4"] }
+        },
+        {
+          "id": "pad1_release_tap",
+          "input": { "control": "note:36", "event": "release", "min_press_ms": 50, "max_press_ms": 400 },
+          "action": { "type": "keyboard", "keys": ["enter"] },
+          "description": "Quick-tap pad 1 to confirm a dialog"
+        },
+        {
+          "id": "knob1_low",
+          "input": { "control": "cc:1", "event": "change", "value_max": 42 },
+          "action": { "type": "keyboard", "keys": ["F1"] }
+        },
+        {
+          "id": "knob1_mid",
+          "input": { "control": "cc:1", "event": "change", "value_min": 43, "value_max": 85 },
+          "action": { "type": "keyboard", "keys": ["F2"] }
+        },
+        {
+          "id": "knob1_high",
+          "input": { "control": "cc:1", "event": "change", "value_min": 86 },
+          "action": { "type": "keyboard", "keys": ["F3"] }
+        }
+      ]
+    },
+    "1": {
+      "name": "Shift (hold pad 17)",
+      "hold_to_activate": true,
+      "mappings": [
+        {
+          "id": "shift_pad1",
+          "input": { "control": "note:52", "event": "press" },
+          "action": { "type": "keyboard", "keys": ["ctrl", "shift", "1"] }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+version: 1
+name: YAML smoke test
+description: Same data as sample_profile.json, in YAML, to exercise the store.
+device_match:
+  kind: midi
+  name_contains: anything
+layers:
+  0:
+    name: Default
+    mappings:
+      - id: pad1
+        input: { control: "note:60", event: press }
+        action: { type: keyboard, keys: ["ctrl", "1"] }

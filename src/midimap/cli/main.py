@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 
 from .. import __version__
-from . import monitor
+from . import monitor, run
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -16,6 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = p.add_subparsers(dest="command")
     monitor.add_subparser(sub)
+    run.add_subparser(sub)
     return p
 
 

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "name": "Bad profile — wrong type on keys",
+  "layers": {
+    "0": {
+      "name": "Default",
+      "mappings": [
+        {
+          "id": "pad1",
+          "input": { "control": "note:60" },
+          "action": { "type": "keyboard", "keys": "ctrl+1" }
+        }
+      ]
+    }
+  }
+}
