@@ -1,9 +1,5 @@
 """Headless wiring: DeviceManager -> EventBus -> MappingEngine -> ActionExecutor.
 
-This is the runtime graph used by both the ``run`` CLI subcommand and
-the M4 Qt GUI (the GUI replaces the headless main loop with a Qt event
-loop and bridges the EventBus to Qt signals).
-
 Lifecycle::
 
     app = App.start(profile)
@@ -38,14 +34,29 @@ class App:
         *,
         dry_run: bool = False,
         auto_connect: bool = True,
+        scripts_enabled: bool | None = None,
+        confirm_risky: bool | None = None,
+        confirm_callback=None,  # type: ignore[no-untyped-def]
     ) -> None:
         self.profile = profile
         self.dry_run = dry_run
         self.auto_connect = auto_connect
+        # If the caller didn't pass these, use the profile's
+        # global_settings (M3's typed accessors).
+        if scripts_enabled is None:
+            scripts_enabled = not profile.disable_scripts
+        if confirm_risky is None:
+            confirm_risky = profile.confirm_risky
+
         self.bus = EventBus()
         self.devices = DeviceManager()
         self.engine = MappingEngine(profile)
-        self.executor = ActionExecutor(dry_run=dry_run)
+        self.executor = ActionExecutor(
+            dry_run=dry_run,
+            scripts_enabled=scripts_enabled,
+            confirm_risky=confirm_risky,
+            confirm_callback=confirm_callback,
+        )
         self._stop = threading.Event()
 
         # bus.publish is called by DeviceManager on every NormalizedEvent
@@ -109,12 +120,20 @@ def run_profile(
     *,
     dry_run: bool = False,
     auto_connect: bool = True,
+    scripts_enabled: bool | None = None,
+    confirm_risky: bool | None = None,
 ) -> int:
     """Convenience: load a profile, run the app until interrupted."""
     from .profile.store import load_profile
 
     profile = load_profile(profile_path)
-    app = App(profile, dry_run=dry_run, auto_connect=auto_connect)
+    app = App(
+        profile,
+        dry_run=dry_run,
+        auto_connect=auto_connect,
+        scripts_enabled=scripts_enabled,
+        confirm_risky=confirm_risky,
+    )
     log.info("loaded profile %r with %d layers", profile.name, len(profile.layers))
     app.run_forever()
     return 0

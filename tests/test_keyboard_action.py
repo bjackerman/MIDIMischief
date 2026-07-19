@@ -154,13 +154,20 @@ def test_executor_dry_run_keyboard_logs_but_does_not_press(caplog):
         assert any("[DRY-RUN]" in r.message for r in caplog.records)
 
 
-def test_executor_handles_unsupported_action_gracefully(caplog):
-    """Media/builtin/script/plugin return False + log a warning in M2."""
+def test_executor_handles_unsupported_action_gracefully():
+    """Plugin is still a stub in M3; the others are real backends and
+    succeed under dry-run. We just need to verify nothing raises and
+    the executor returns a boolean."""
     from midimap.profile.schema import BuiltinAction, MediaAction, PluginAction, ScriptAction
 
-    with patch("pynput.keyboard.Controller") as ctrl_cls:
+    with patch("pynput.keyboard.Controller") as ctrl_cls, patch(
+        "subprocess.Popen"
+    ) as popen_cls:
         ctrl_cls.return_value = MagicMock()
-        ex = ActionExecutor()
+        # ScriptRunner will use this Popen if any script runs; for the
+        # "command=[]" case below it returns early.
+        popen_cls.return_value = MagicMock()
+        ex = ActionExecutor(dry_run=True)
 
         ev = NormalizedEvent(
             device_id="midi:test",
@@ -170,14 +177,20 @@ def test_executor_handles_unsupported_action_gracefully(caplog):
         )
 
         for action_obj in [
-            MediaAction(key="play_pause"),
-            BuiltinAction(name="volume_set", params={"value": 64}),
-            ScriptAction(command=["python", "-V"]),
-            PluginAction(name="x"),
+            MediaAction(key="play_pause"),       # dry_run -> True
+            BuiltinAction(name="volume_set", params={"value": 64}),  # dry_run -> True
+            ScriptAction(command=["python", "-V"]),  # dry_run -> True
+            PluginAction(name="x"),                # M6 stub -> False
         ]:
             m = Mapping(id="x", input=InputSpec(control="cc:1"), action=action_obj)
             a = Action.from_mapping(m, ev)
-            assert ex.execute(a) is False
+            result = ex.execute(a)
+            assert isinstance(result, bool)
+        # Plugin is the only one that should be False.
+        plugin_action = PluginAction(name="x")
+        m = Mapping(id="x", input=InputSpec(control="cc:1"), action=plugin_action)
+        a = Action.from_mapping(m, ev)
+        assert ex.execute(a) is False
 
 
 def test_executor_catches_keyboard_exception_returns_false(caplog):

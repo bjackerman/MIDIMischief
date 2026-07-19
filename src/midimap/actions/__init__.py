@@ -2,8 +2,8 @@
 
 An :class:`Action` is what the :class:`~midimap.mapping.MappingEngine`
 emits. The :class:`ActionExecutor` dispatches to the right backend:
-keyboard, media, builtin, script, or plugin. M2 implements keyboard
-fully; media/builtin/script are M3; plugin is M6.
+keyboard, media, builtin, script, or plugin. M2 implemented keyboard;
+M3 adds media + builtin + script. Plugin arrives in M6.
 
 Design points
 -------------
@@ -11,6 +11,9 @@ Design points
   performing it. The GUI exposes a global "Test Mode" toggle.
 - Every dispatcher path catches and logs exceptions so a single bad
   action cannot kill the engine.
+- Template substitution (``$value``, ``$control``, ...) is applied to
+  the action ``params`` dict before dispatch, so script argv, builtin
+  params, and command arguments all see the triggering event.
 """
 
 from __future__ import annotations
@@ -23,6 +26,9 @@ if TYPE_CHECKING:
     from ..events import NormalizedEvent
     from ..profile.schema import Mapping
 
+from .builtin import run_builtin
+from .template import substitute
+
 log = logging.getLogger(__name__)
 
 
@@ -32,10 +38,9 @@ class Action:
 
     ``kind`` is one of ``"keyboard" | "media" | "builtin" | "script" | "plugin"``.
     ``params`` is the action-specific parameter dict (already validated
-    by the profile schema). ``raw`` is the original :class:`Mapping`,
-    for debugging/UI display. ``event`` is the triggering event, so
-    downstream backends can read ``$value`` / ``$control`` / ``$event``
-    from it (M3 will implement the template substitution).
+    by the profile schema and template-substituted). ``raw`` is the
+    original :class:`Mapping`, for debugging/UI display. ``event`` is
+    the triggering event.
     """
 
     kind: str
@@ -46,31 +51,43 @@ class Action:
     @classmethod
     def from_mapping(cls, mapping: Mapping, event: NormalizedEvent) -> Action:
         params = mapping.action.model_dump()
-        # The triggering event is attached as a private field so backends
-        # can do template substitution without re-passing it.
-        params["_event"] = event
+        # Apply template substitution: $value, $control, $device, etc.
+        params = substitute(params, event)
         return cls(kind=mapping.action.type, params=params, raw=mapping, event=event)
 
 
 class ActionExecutor:
     """Dispatch Action → the right backend.
 
-    The executor is constructed once at startup and shared across
-    threads. The dispatch methods are quick (microseconds) so we don't
-    bother with a worker pool for the M2 subset; the script action in
-    M3 will be the one that needs a real pool.
+    M3 owns its own ScriptRunner. Builtin and media share no state
+    with the executor beyond being called. Plugin remains a stub.
     """
 
-    def __init__(self, *, dry_run: bool = False) -> None:
-        self.dry_run = dry_run
-        # Lazy import to avoid pulling pynput at module load time (the
-        # monitor CLI doesn't need it).
+    def __init__(
+        self,
+        *,
+        dry_run: bool = False,
+        scripts_enabled: bool = True,
+        confirm_risky: bool = True,
+        confirm_callback=None,  # type: ignore[no-untyped-def]
+    ) -> None:
         from .keyboard import KeyboardSender
+        from .media import MediaKeySender
+        from .script import ScriptRunner
 
+        self.dry_run = dry_run
         self._keyboard = KeyboardSender(dry_run=dry_run)
-        # Stubs for M3/M6 — see actions/builtin.py, actions/script.py, etc.
-        # They raise NotImplementedError on execute(); the M3 milestone
-        # will replace them.
+        self._media = MediaKeySender(dry_run=dry_run)
+        self._scripts = ScriptRunner(
+            confirm_callback=confirm_callback,
+            enabled=scripts_enabled,
+            confirm_risky=confirm_risky,
+            dry_run=dry_run,
+        )
+
+    @property
+    def scripts(self) -> ScriptRunner:  # type: ignore[name-defined]  # noqa: F821
+        return self._scripts
 
     # ---- public ----
 
@@ -84,14 +101,18 @@ class ActionExecutor:
                 log.info("%skeyboard send: %s", pfx, keys)
                 return True
             if action.kind == "media":
-                log.warning("%smedia action not yet implemented (M3): %s", pfx, action.params)
-                return False
+                key = action.params.get("key")
+                ok = self._media.send(key)
+                log.info("%smedia key: %s -> %s", pfx, key, ok)
+                return ok
             if action.kind == "builtin":
-                log.warning("%sbuiltin action not yet implemented (M3): %s", pfx, action.params)
-                return False
+                name = action.params.get("name")
+                builtin_params = dict(action.params.get("params") or {})
+                ok = run_builtin(name, builtin_params, dry_run=self.dry_run)
+                log.info("%sbuiltin: %s(%s) -> %s", pfx, name, builtin_params, ok)
+                return ok
             if action.kind == "script":
-                log.warning("%sscript action not yet implemented (M3)", pfx)
-                return False
+                return self._scripts.run(action.params, event=action.event)
             if action.kind == "plugin":
                 log.warning("%splugin action not yet implemented (M6): %s", pfx, action.params)
                 return False
@@ -102,8 +123,9 @@ class ActionExecutor:
             return False
 
     def shutdown(self) -> None:
-        """Release any held resources (M3 will add the script pool here)."""
+        """Release any held resources."""
         self._keyboard.close()
+        self._media.close()
 
 
 __all__ = ["Action", "ActionExecutor"]

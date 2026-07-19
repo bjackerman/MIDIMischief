@@ -254,6 +254,20 @@ class Profile(BaseModel):
     def matches_device(self, device: dict[str, Any]) -> bool:
         return self.device_match.matches(device)
 
+    @property
+    def disable_scripts(self) -> bool:
+        """Read ``global_settings.disable_scripts`` as a typed bool.
+
+        The ``global_settings`` field is a free-form dict in the schema
+        (so users can stash arbitrary app-level knobs without bumping
+        the version), but a few well-known keys have typed accessors.
+        """
+        return bool(self.global_settings.get("disable_scripts", False))
+
+    @property
+    def confirm_risky(self) -> bool:
+        return bool(self.global_settings.get("confirm_risky", True))
+
 
 # ---------------------------------------------------------------------------
 # Loader helpers (used by store.py and tests)

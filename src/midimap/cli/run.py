@@ -12,6 +12,12 @@ Examples
 
     # don't auto-connect to matching devices (manual connect later)
     python -m midimap run --profile sample_profile.json --no-auto-connect
+
+    # hard-disable all script actions (defence-in-depth)
+    python -m midimap run --profile sample_profile.json --no-scripts
+
+    # disable the "risky" confirmation prompt (use with care!)
+    python -m midimap run --profile sample_profile.json --no-confirm-risky
 """
 
 from __future__ import annotations
@@ -30,6 +36,8 @@ def run(args: argparse.Namespace) -> int:
             args.profile,
             dry_run=args.dry_run,
             auto_connect=not args.no_auto_connect,
+            scripts_enabled=not args.no_scripts,
+            confirm_risky=not args.no_confirm_risky,
         )
     except ProfileLoadError as e:
         print(f"profile error: {e}", flush=True)
@@ -61,6 +69,16 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
         "--no-auto-connect",
         action="store_true",
         help="Don't auto-connect devices matching the profile",
+    )
+    p.add_argument(
+        "--no-scripts",
+        action="store_true",
+        help="Hard-disable all script actions (overrides profile)",
+    )
+    p.add_argument(
+        "--no-confirm-risky",
+        action="store_true",
+        help="Skip the risky-script confirmation prompt (use with care)",
     )
     p.add_argument(
         "--log-level",
