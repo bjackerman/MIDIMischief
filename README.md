@@ -10,9 +10,10 @@ scripts.
 - **M3 (done):** Script runner, OS built-ins (volume, media, launch
   app, open URL), media keys, template substitution (`$value` etc.),
   safety controls.
-- **M4 (now):** Qt (PySide6) GUI editor — main window, 4 tabs
+- **M4 (done):** Qt (PySide6) GUI editor — main window, 4 tabs
   (Devices, Profile, Event Log, Settings), binding wizard, Learn Mode.
-- **M5:** Profile hot-reload + diff/merge tools, OS packaging.
+- **M5 (now):** Profile hot-reload, validate/diff/export/import
+  CLI, edit-existing bindings, tray "hide to tray", packaging notes.
 - **M6:** HID (raw reports) + plugin registry.
 
 ## Quick start
@@ -29,6 +30,16 @@ python -m midimap monitor --device "ATM SQ"
 
 # run a profile headless
 python -m midimap run --profile tests/fixtures/sample_profile.json --dry-run
+
+# validate a profile
+python -m midimap validate tests/fixtures/sample_profile.json
+
+# diff two profiles (exit 1 if no changes by default)
+python -m midimap diff a.json b.json
+
+# convert between JSON and YAML
+python -m midimap export sample.json sample.yaml
+python -m midimap import sample.yaml sample.json
 
 # launch the GUI
 python -m midimap gui
@@ -60,6 +71,9 @@ src/midimap/
     monitor.py           # M1 headless monitor
     run.py               # M2-M3 headless run
     gui.py               # M4 Qt entry
+    validate.py          # M5 validate subcommand
+    diff.py              # M5 diff subcommand
+    export_import.py     # M5 export/import subcommands
   devices/
     manager.py           # DeviceManager
     midi_normalizer.py
@@ -70,6 +84,8 @@ src/midimap/
   profile/
     schema.py            # pydantic v2: Profile/Layer/Mapping/Action union
     store.py             # JSON+YAML load/save
+    diff.py              # structural diff
+    watcher.py           # QFileSystemWatcher + reload signal
   gui/
     app.py               # QApplication + single-instance lock
     main_window.py       # QMainWindow + QTabWidget + menubar
@@ -95,5 +111,5 @@ tests/
 ## Status
 
 ```
-165 tests pass, ruff clean, 3 platform-skipped.
+194 tests pass, ruff clean, 3 platform-skipped.
 ```
