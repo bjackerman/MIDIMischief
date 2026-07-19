@@ -3,7 +3,8 @@
 An :class:`Action` is what the :class:`~midimap.mapping.MappingEngine`
 emits. The :class:`ActionExecutor` dispatches to the right backend:
 keyboard, media, builtin, script, or plugin. M2 implemented keyboard;
-M3 adds media + builtin + script. Plugin arrives in M6.
+M3 added media + builtin + script. M6 implements plugin via the
+:class:`midimap.plugins.PluginRegistry`.
 
 Design points
 -------------
@@ -59,8 +60,9 @@ class Action:
 class ActionExecutor:
     """Dispatch Action → the right backend.
 
-    M3 owns its own ScriptRunner. Builtin and media share no state
-    with the executor beyond being called. Plugin remains a stub.
+    The executor owns a :class:`ScriptRunner` for script actions
+    and looks plugins up in the :class:`PluginRegistry` for plugin
+    actions. Builtin and media are stateless module-level calls.
     """
 
     def __init__(
@@ -114,13 +116,23 @@ class ActionExecutor:
             if action.kind == "script":
                 return self._scripts.run(action.params, event=action.event)
             if action.kind == "plugin":
-                log.warning("%splugin action not yet implemented (M6): %s", pfx, action.params)
-                return False
+                return self._dispatch_plugin(action, pfx=pfx)
             log.warning("unknown action kind: %r", action.kind)
             return False
         except Exception:
             log.exception("action execution failed: %s", action.kind)
             return False
+
+    def _dispatch_plugin(self, action: Action, *, pfx: str) -> bool:
+        from .plugin import run_plugin
+
+        fn = action.params.get("function") or action.params.get("module")
+        args = action.params.get("args") or {}
+        if not fn:
+            log.warning("%splugin action missing 'function' name: %s", pfx, action.params)
+            return False
+        log.info("%splugin: %s(%s)", pfx, fn, args)
+        return run_plugin(str(fn), args, event=action.event, dry_run=self.dry_run)
 
     def shutdown(self) -> None:
         """Release any held resources."""

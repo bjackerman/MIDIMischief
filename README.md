@@ -12,9 +12,12 @@ scripts.
   safety controls.
 - **M4 (done):** Qt (PySide6) GUI editor — main window, 4 tabs
   (Devices, Profile, Event Log, Settings), binding wizard, Learn Mode.
-- **M5 (now):** Profile hot-reload, validate/diff/export/import
+- **M5 (done):** Profile hot-reload, validate/diff/export/import
   CLI, edit-existing bindings, tray "hide to tray", packaging notes.
-- **M6:** HID (raw reports) + plugin registry.
+- **M6 (now):** HID backend (`hidapi`) + device descriptors +
+  plugin registry + auto-start.
+
+**Goal complete.**
 
 ## Quick start
 
@@ -45,6 +48,9 @@ python -m midimap import sample.yaml sample.json
 python -m midimap gui
 # or open a profile at launch:
 python -m midimap gui --profile tests/fixtures/sample_profile.json
+
+# list HID devices (M6)
+python -c "import hid; [print(d['product_string'], d['vendor_id'], d['product_id']) for d in hid.enumerate()]"
 ```
 
 The full design lives at
@@ -75,8 +81,23 @@ src/midimap/
     diff.py              # M5 diff subcommand
     export_import.py     # M5 export/import subcommands
   devices/
-    manager.py           # DeviceManager
+    manager.py         # DeviceManager (MIDI + HID)
     midi_normalizer.py
+    hid_manager.py      # HIDDeviceManager (M6)
+    hid_normalizer.py   # HID boot-keyboard + generic (M6)
+    descriptors.py      # YAML/JSON device descriptors (M6)
+    builtin_descriptors/descriptors.yaml  # Shipped defaults (M6)
+  actions/
+    __init__.py          # Action, ActionExecutor dispatcher
+    template.py          # $value/$control/$device/... substitution
+    keyboard.py          # pynput wrapper, dry_run
+    media.py             # MediaKeySender (Win/mac/Linux)
+    builtin.py           # launch_app, open_url, volume_*
+    script.py            # ScriptRunner (subprocess, timeout, MIDIMAP_EVENT)
+    plugin.py            # PluginAction (M6)
+  plugins/
+    registry.py          # entry-point discovery (M6)
+  autostart.py           # per-OS login auto-start (M6)
   events.py
   event_bus.py
   mapping/

@@ -1,0 +1,11 @@
+# Built-in HID device descriptors.
+# These are loaded at startup; user-level files in
+# ~/.config/midimap/devices/*.yaml override these on a (vid, pid) basis.
+
+# Logitech POP Icon Keys — Keys interface (boot protocol keyboard)
+- vendor_id: 0x046D
+  product_id: 0xB38F
+  name: "Logitech POP Icon Keys (Keys)"
+  manufacturer: "Logitech"
+  layout:
+    type: boot
