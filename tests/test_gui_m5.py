@@ -103,6 +103,53 @@ def test_profile_editor_switches_layer(qapp):  # type: ignore[no-untyped-def]
     qapp.processEvents()
 
 
+def test_profile_editor_layer_operations_and_runtime_sync(qapp):  # type: ignore[no-untyped-def]
+    """Layer mutations update both the visible editor and the live engine."""
+    from unittest.mock import MagicMock, patch
+
+    with patch("pynput.keyboard.Controller") as controller:
+        controller.return_value = MagicMock()
+        runtime = App(_profile(), dry_run=True, auto_connect=False)
+        win = MainWindow(app=runtime)
+        editor = win._profile_tab
+
+        layer_idx = editor.add_layer("Shift")
+        assert layer_idx == 1
+        assert editor.selected_layer_idx() == 1
+        assert runtime.engine.profile is editor.profile()
+
+        assert editor.rename_layer(layer_idx, "Fn") is True
+        assert editor.profile().layers[layer_idx].name == "Fn"
+
+        assert editor.set_default_layer(layer_idx) is True
+        assert editor.profile().default_layer == layer_idx
+
+        assert editor.set_hold_to_activate(layer_idx, True) is True
+        assert editor.profile().layers[layer_idx].hold_to_activate is True
+
+        editor.add_mapping(
+            Mapping(
+                id="fn_pad",
+                input=InputSpec(control="note:63"),
+                action=KeyboardAction(keys=["f"]),
+            )
+        )
+        assert [m.id for m in editor.profile().layers[layer_idx].mappings] == ["fn_pad"]
+
+        runtime.engine._active_layers.add(layer_idx)
+        assert editor.delete_layer(layer_idx) is True
+        assert layer_idx not in editor.profile().layers
+        assert editor.profile().default_layer == 0
+        assert layer_idx not in runtime.engine.active_layers
+        assert runtime.engine.profile is editor.profile()
+
+        assert editor.delete_layer(0) is False
+        assert 0 in editor.profile().layers
+        win.close()
+        runtime.stop()
+        qapp.processEvents()
+
+
 def test_main_window_loads_profile_and_starts_watcher(tmp_path: Path, qapp):  # type: ignore[no-untyped-def]
     p = tmp_path / "p.json"
     p.write_text(json.dumps(_profile().model_dump(mode="json")))
@@ -169,11 +216,10 @@ def test_watcher_emits_reload_signal_on_external_change(tmp_path: Path, qapp):  
     w = ProfileWatcher(p)
     seen: list = []
     w.profile_reloaded.connect(seen.append)
-    p.write_text(json.dumps(Profile(name="Another", layers=_profile().layers).model_dump(mode="json")))
+    p.write_text(
+        json.dumps(Profile(name="Another", layers=_profile().layers).model_dump(mode="json"))
+    )
     for _ in range(60):
         qapp.processEvents()
         time.sleep(0.02)
-    assert any(
-        r.profile is not None and r.profile.name == "Another" and r.changed
-        for r in seen
-    )
+    assert any(r.profile is not None and r.profile.name == "Another" and r.changed for r in seen)

@@ -303,7 +303,9 @@ class MainWindow(QMainWindow):
         if dlg.exec() == dlg.DialogCode.Accepted:
             mapping = dlg.built_mapping()
             if mapping is not None:
-                self._profile_tab.add_mapping(mapping)
+                self._profile_tab.add_mapping(
+                    mapping, layer_idx=self._profile_tab.selected_layer_idx()
+                )
                 self._status_label.setText(f"added mapping {mapping.id}")
 
     def _on_bind_from_event(self, event) -> None:  # type: ignore[no-untyped-def]
@@ -316,7 +318,9 @@ class MainWindow(QMainWindow):
         if dlg.exec() == dlg.DialogCode.Accepted:
             mapping = dlg.built_mapping()
             if mapping is not None:
-                self._profile_tab.add_mapping(mapping)
+                self._profile_tab.add_mapping(
+                    mapping, layer_idx=self._profile_tab.selected_layer_idx()
+                )
                 # Switch to the Profile tab so the user sees the new
                 # mapping land in the list.
                 self._tabs.setCurrentWidget(self._profile_tab)
