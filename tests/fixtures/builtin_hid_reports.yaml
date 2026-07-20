@@ -1,0 +1,50 @@
+# One representative active report for every bundled descriptor. Reports use
+# hidapi byte values; expected_controls are normalized IDs from an empty state.
+- vid: 0x0FD9
+  pid: 0x0060
+  report: [0, 1]
+  expected_controls: ["key:0"]
+- vid: 0x0FD9
+  pid: 0x006C
+  report: [0, 2]
+  expected_controls: ["key:1"]
+- vid: 0x239A
+  pid: 0x8107
+  report: [0, 0, 4, 0, 0, 0, 0, 0]
+  expected_controls: ["key:4"]
+- vid: 0x2341
+  pid: 0x8036
+  report: [0, 0, 5, 0, 0, 0, 0, 0]
+  expected_controls: ["key:5"]
+- vid: 0x2E8A
+  pid: 0x000A
+  report: [1, 127]
+  expected_controls: ["button:0", "axis:0"]
+- vid: 0x16C0
+  pid: 0x0486
+  report: [1, 52, 18]
+  expected_controls: ["button:0", "axis:0"]
+- vid: 0x045E
+  pid: 0x028E
+  report: [0, 0, 0, 16, 0, 0, 1, 0, 255, 255]
+  expected_controls: ["button:a", "axis:left_x", "axis:left_y"]
+- vid: 0x054C
+  pid: 0x05C4
+  report: [1, 127, 64, 0, 0, 32]
+  expected_controls: ["button:cross", "axis:left_x", "axis:left_y"]
+- vid: 0x057E
+  pid: 0x2009
+  report: [48, 0, 0, 8, 0, 0, 52, 18, 120, 86]
+  expected_controls: ["button:a", "axis:left_x", "axis:left_y"]
+- vid: 0x077D
+  pid: 0x0410
+  report: [0, 1, 255]
+  expected_controls: ["button:press", "encoder:turn"]
+- vid: 0x0B33
+  pid: 0x0030
+  report: [255, 1, 2]
+  expected_controls: ["button:0", "shuttle", "jog"]
+- vid: 0x05F3
+  pid: 0x0241
+  report: [0, 8]
+  expected_controls: ["key:3"]

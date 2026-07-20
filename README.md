@@ -281,8 +281,8 @@ field is a major-version bump and requires a migration script.
    `product_string` matches.
 4. Create `~/.config/midimap/devices/<vid>:<pid>.yaml` (Linux/macOS) or
    `%LOCALAPPDATA%\midimap\devices\<vid>-<pid>.yaml` (Windows) with a
-   descriptor. See `src/midimap/devices/builtin_descriptors/descriptors.yaml`
-   for the boot-keyboard example shipped with the project.
+   descriptor. See the family-specific examples under
+   `src/midimap/devices/builtin_descriptors/`.
 5. Reload (the app watches the directory and picks up the new file).
 
 ## Project layout
@@ -302,7 +302,7 @@ src/midimap/
     hid_manager.py       # HIDDeviceManager
     hid_normalizer.py    # boot-keyboard + generic layouts
     descriptors.py       # YAML/JSON device descriptors
-    builtin_descriptors/descriptors.yaml
+    builtin_descriptors/    # bundled HID catalog, split by device family
   actions/               # Action, ActionExecutor, keyboard, media, builtin, script, plugin, template
   mapping/engine.py
   profile/               # schema (pydantic v2), store, diff, watcher

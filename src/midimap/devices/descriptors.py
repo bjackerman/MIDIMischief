@@ -151,20 +151,37 @@ def load_descriptors_from(path: Path) -> list[DeviceDescriptor]:
 
 
 def load_all_descriptors(search_paths: list[Path]) -> dict[tuple[int, int], DeviceDescriptor]:
-    """Load every descriptor from a list of paths, last-wins on conflicts."""
+    """Load descriptor files from paths or directories, last-wins on conflicts.
+
+    Directories are scanned non-recursively for ``*.yaml``, ``*.yml``, and
+    ``*.json`` files in lexical order.  This lets the bundled catalog use one
+    file per device family while retaining the convenient user descriptor
+    directory documented by the application.
+    """
     out: dict[tuple[int, int], DeviceDescriptor] = {}
     for path in search_paths:
-        for desc in load_descriptors_from(path):
-            existing = out.get(desc.vid_pid)
-            if existing is not None and existing.source is not None:
-                log.info(
-                    "descriptor for %04x:%04x redefined by %s (was %s)",
-                    desc.vendor_id,
-                    desc.product_id,
-                    path,
-                    existing.source,
-                )
-            out[desc.vid_pid] = desc
+        paths = (
+            sorted(
+                candidate
+                for pattern in ("*.yaml", "*.yml", "*.json")
+                for candidate in path.glob(pattern)
+                if candidate.is_file()
+            )
+            if path.is_dir()
+            else [path]
+        )
+        for descriptor_path in paths:
+            for desc in load_descriptors_from(descriptor_path):
+                existing = out.get(desc.vid_pid)
+                if existing is not None and existing.source is not None:
+                    log.info(
+                        "descriptor for %04x:%04x redefined by %s (was %s)",
+                        desc.vendor_id,
+                        desc.product_id,
+                        descriptor_path,
+                        existing.source,
+                    )
+                out[desc.vid_pid] = desc
     return out
 
 

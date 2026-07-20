@@ -5,8 +5,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+import yaml
+
 from midimap.devices.descriptors import (
     DeviceDescriptor,
+    default_search_paths,
     load_all_descriptors,
     load_descriptors_from,
 )
@@ -66,6 +70,49 @@ def test_load_all_descriptors_last_wins(tmp_path: Path):
     p2.write_text("vendor_id: 1\nproduct_id: 1\nname: 'second'\nlayout: {type: boot}\n")
     out = load_all_descriptors([p1, p2])
     assert out[(1, 1)].name == "second"
+
+
+def test_load_all_descriptors_scans_directory(tmp_path: Path):
+    (tmp_path / "a.yaml").write_text("vendor_id: 1\nproduct_id: 1\nlayout: {type: boot}\n")
+    (tmp_path / "b.json").write_text(
+        json.dumps({"vendor_id": 2, "product_id": 2, "layout": {"type": "boot"}})
+    )
+    assert set(load_all_descriptors([tmp_path])) == {(1, 1), (2, 2)}
+
+
+@pytest.fixture(scope="module")
+def bundled_descriptors() -> dict[tuple[int, int], DeviceDescriptor]:
+    builtin_dir = default_search_paths(Path("unused"))[0]
+    return load_all_descriptors([builtin_dir])
+
+
+@pytest.fixture(scope="module")
+def bundled_report_fixtures() -> list[dict]:
+    fixture_path = Path(__file__).parent / "fixtures" / "builtin_hid_reports.yaml"
+    return yaml.safe_load(fixture_path.read_text(encoding="utf-8"))
+
+
+def test_every_bundled_descriptor_loads_and_has_a_report_fixture(
+    bundled_descriptors: dict[tuple[int, int], DeviceDescriptor],
+    bundled_report_fixtures: list[dict],
+):
+    fixture_ids = {(entry["vid"], entry["pid"]) for entry in bundled_report_fixtures}
+    assert bundled_descriptors
+    assert set(bundled_descriptors) == fixture_ids
+
+
+def test_bundled_reports_normalize_expected_controls(
+    bundled_descriptors: dict[tuple[int, int], DeviceDescriptor],
+    bundled_report_fixtures: list[dict],
+):
+    for fixture in bundled_report_fixtures:
+        vid_pid = (fixture["vid"], fixture["pid"])
+        events, _ = hid_report_to_events(
+            bytes(fixture["report"]),
+            device_id="hid:fixture",
+            descriptor=bundled_descriptors[vid_pid],
+        )
+        assert {event.control_id for event in events} == set(fixture["expected_controls"])
 
 
 def test_load_descriptors_invalid_missing_vid(tmp_path: Path):
