@@ -82,3 +82,34 @@ def test_devices_tab_forwards_selected_device_events_to_render(qapp):  # type: i
 
     assert tab._device_render.values["cc:10"] == 42
     tab.close()
+
+
+def test_devices_tab_refresh_preserves_selected_device(qapp):  # type: ignore[no-untyped-def]
+    from PySide6.QtCore import Qt
+
+    from midimap.gui.qt_bridge import EventBusQtBridge
+    from midimap.gui.tabs.devices import DevicesTab
+
+    class Manager:
+        def list_devices(self):  # type: ignore[no-untyped-def]
+            return [
+                {"id": "hid:other", "name": "Other"},
+                {"id": "hid:demo", "name": "Demo", "descriptor": True, "layout": _layout()},
+            ]
+
+        def connect(self, _device_id):  # type: ignore[no-untyped-def]
+            pass
+
+        def disconnect(self, _device_id):  # type: ignore[no-untyped-def]
+            pass
+
+    bridge = EventBusQtBridge()
+    tab = DevicesTab(Manager(), bridge)
+    tab._device_list.setCurrentRow(1)
+    tab._refresh()
+    bridge.push(NormalizedEvent("hid:demo", "cc:10", EventType.CHANGE, Value(42)))
+    qapp.processEvents()
+
+    assert tab._device_list.currentItem().data(Qt.UserRole)["id"] == "hid:demo"
+    assert tab._device_render.values["cc:10"] == 42
+    tab.close()
