@@ -143,6 +143,9 @@ class HIDDeviceManager:
                     "usage_page": e.get("usage_page"),
                     "usage": e.get("usage"),
                     "descriptor": desc is not None,
+                    # Keep the serializable layout metadata with the discovery
+                    # record so GUI consumers can render known surfaces.
+                    "layout": dict(desc.layout) if desc is not None else None,
                 }
             )
         return out
