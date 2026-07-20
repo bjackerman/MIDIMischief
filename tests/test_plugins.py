@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from midimap.actions import Action, ActionExecutor
 from midimap.actions.plugin import run_plugin
+from midimap.events import EventType, NormalizedEvent, Value
 from midimap.plugins import PluginRegistry, get_registry, reset_registry
 
 
@@ -107,6 +109,41 @@ def test_run_plugin_calls_with_event_kwarg():
     r._register("cap", cap)
     assert run_plugin("cap", {}, event={"control": "note:60"}) is True
     assert seen["event"] == {"control": "note:60"}
+
+
+def test_executor_dispatches_plugin_action_schema_fields():
+    """PluginAction's serialized ``name`` and ``params`` reach the registry."""
+    reset_registry()
+    seen: dict[str, Any] = {}
+
+    def plugin(*, message: str, event: NormalizedEvent) -> bool:
+        seen.update(message=message, event=event)
+        return True
+
+    try:
+        get_registry()._register("capture", plugin)
+        event = NormalizedEvent(
+            device_id="midi:test",
+            control_id="cc:1",
+            event_type=EventType.CHANGE,
+            value=Value(64),
+        )
+        action = Action(
+            kind="plugin",
+            params={"type": "plugin", "name": "capture", "params": {"message": "hello"}},
+            raw=None,  # type: ignore[arg-type]
+            event=event,
+        )
+
+        # This dispatch path does not need the keyboard/media backends that
+        # ActionExecutor.__init__ constructs.
+        executor = object.__new__(ActionExecutor)
+        executor.dry_run = False
+
+        assert executor.execute(action) is True
+        assert seen == {"message": "hello", "event": event}
+    finally:
+        reset_registry()
 
 
 def test_registry_load_is_idempotent():

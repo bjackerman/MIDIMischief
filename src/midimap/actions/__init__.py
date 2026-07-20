@@ -126,8 +126,17 @@ class ActionExecutor:
     def _dispatch_plugin(self, action: Action, *, pfx: str) -> bool:
         from .plugin import run_plugin
 
-        fn = action.params.get("function") or action.params.get("module")
-        args = action.params.get("args") or {}
+        # ``PluginAction`` serializes its registry lookup key and arguments
+        # as ``name`` and ``params``.  Retain the older field names so
+        # profiles written before the current schema remain executable.
+        fn = (
+            action.params.get("name")
+            or action.params.get("function")
+            or action.params.get("module")
+        )
+        args = action.params.get("params")
+        if args is None:
+            args = action.params.get("args") or {}
         if not fn:
             log.warning("%splugin action missing 'function' name: %s", pfx, action.params)
             return False
