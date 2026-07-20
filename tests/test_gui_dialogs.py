@@ -11,6 +11,7 @@ from midimap.events import EventType, NormalizedEvent, Value
 from midimap.gui.dialogs.bind_control import BindControlDialog
 from midimap.gui.dialogs.learn_mode import LearnModeDialog
 from midimap.gui.qt_bridge import EventBusQtBridge
+from midimap.plugins import get_registry, reset_registry
 
 
 def _ev() -> NormalizedEvent:
@@ -57,6 +58,47 @@ def test_bind_dialog_script_walkthrough(qapp):  # type: ignore[no-untyped-def]
     assert m.action.type == "script"
     assert m.action.command == ["echo", "hello"]
     assert m.action.risky is True
+
+
+def test_bind_dialog_plugin_walkthrough(qapp):  # type: ignore[no-untyped-def]
+    """Registered plugins can be selected and saved as plugin mappings."""
+    reset_registry()
+
+    def announce(text: str = "hello") -> None:
+        pass
+
+    try:
+        get_registry()._register("announce", announce)
+        dlg = BindControlDialog(initial_event=_ev())
+        qapp.processEvents()
+
+        assert dlg._plugin_combo.itemText(0) == "announce"
+        dlg._action_type.setCurrentRow(4)
+        dlg._plugin_params_edit.setText('{"text": "MIDI received", "priority": 2}')
+        dlg._mapping_id_edit.setText("plugin_test")
+
+        mapping = dlg._build_mapping()
+
+        assert mapping.id == "plugin_test"
+        assert mapping.input.control == "note:60"
+        assert mapping.action.type == "plugin"
+        assert mapping.action.name == "announce"
+        assert mapping.action.params == {"text": "MIDI received", "priority": 2}
+    finally:
+        reset_registry()
+
+
+def test_bind_dialog_plugin_form_explains_empty_registry(qapp):  # type: ignore[no-untyped-def]
+    reset_registry()
+    try:
+        dlg = BindControlDialog(initial_event=_ev())
+        qapp.processEvents()
+
+        assert dlg._plugin_combo.currentData() is None
+        assert "no plugins registered" in dlg._plugin_combo.currentText()
+        assert not dlg._plugin_combo.isEnabled()
+    finally:
+        reset_registry()
 
 
 def test_bind_dialog_missing_keys_fails_gracefully(qapp):  # type: ignore[no-untyped-def]

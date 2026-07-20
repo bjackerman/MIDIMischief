@@ -3,8 +3,8 @@
 M4 ships a working skeleton: a QDialog with a stacked widget holding
 three pages (Input / Action / Save). The Input page shows the captured
 control; the Action page lets the user pick keyboard/media/builtin/
-script and fill in the right form; the Save page asks for a mapping
-id and optional description.
+script/plugin and fill in the right form; the Save page asks for a
+mapping id and optional description.
 
 The full key-capture widget (which uses pynput.keyboard.Listener to
 record a physical key combo) lands in M5; for M4 the keyboard form
@@ -39,12 +39,14 @@ from PySide6.QtWidgets import (
 )
 
 from ...events import NormalizedEvent
+from ...plugins.registry import get_registry
 from ...profile.schema import (
     BuiltinAction,
     InputSpec,
     KeyboardAction,
     Mapping,
     MediaAction,
+    PluginAction,
     ScriptAction,
 )
 
@@ -138,7 +140,7 @@ class BindControlDialog(QDialog):
             ("Media key", "media", None),
             ("Built-in action", "builtin", None),
             ("Run a script", "script", None),
-            ("Plugin action (M6)", "plugin", None),
+            ("Plugin action", "plugin", None),
         ]:
             item = QListWidgetItem(label)
             item.setData(Qt.UserRole, _kind)
@@ -212,8 +214,18 @@ class BindControlDialog(QDialog):
         w = QWidget(self._action_form_host)
         layout = QFormLayout(w)
         self._plugin_combo = QComboBox(w)
-        self._plugin_combo.addItem("(plugins arrive in M6)", None)
+        registry = get_registry()
+        names = registry.names()
+        if names:
+            for name in names:
+                self._plugin_combo.addItem(name, name)
+        else:
+            self._plugin_combo.addItem("(no plugins registered)", None)
+            self._plugin_combo.setEnabled(False)
         layout.addRow("Plugin:", self._plugin_combo)
+        self._plugin_params_edit = QLineEdit(w)
+        self._plugin_params_edit.setPlaceholderText('JSON object, e.g. {"text": "hello"}')
+        layout.addRow("Parameters:", self._plugin_params_edit)
         self._plugin_page = w
 
     def _build_save_page(self) -> QWidget:
@@ -315,7 +327,9 @@ class BindControlDialog(QDialog):
         self._event = ev
         self._apply_event(ev)
 
-    def _build_action_obj(self) -> KeyboardAction | MediaAction | BuiltinAction | ScriptAction:
+    def _build_action_obj(
+        self,
+    ) -> KeyboardAction | MediaAction | BuiltinAction | ScriptAction | PluginAction:
         kind = self._action_type.currentItem().data(Qt.UserRole)
         if kind == "keyboard":
             raw = self._keys_edit.text()
@@ -352,7 +366,23 @@ class BindControlDialog(QDialog):
                 risky=self._script_risky.currentIndex() == 1,
                 cwd=self._script_cwd_edit.text().strip() or None,
             )
-        raise ValueError("plugin actions are not yet implemented (M6); pick another type")
+        if kind == "plugin":
+            name = self._plugin_combo.currentData()
+            if not name:
+                raise ValueError("no plugins are registered; install a 'midimap.plugins' entry point")
+            params_text = self._plugin_params_edit.text().strip()
+            params: dict[str, Any] = {}
+            if params_text:
+                import json
+
+                try:
+                    params = json.loads(params_text)
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"plugin parameters must be valid JSON: {e}") from e
+                if not isinstance(params, dict):
+                    raise ValueError("plugin parameters must be a JSON object")
+            return PluginAction(name=name, params=params)
+        raise ValueError(f"unsupported action type: {kind}")
 
     def _build_mapping(self) -> Mapping:
         spec = InputSpec(
