@@ -189,7 +189,7 @@ class DeviceManager:
 
     def is_connected(self, device_id: str) -> bool:
         if device_id.startswith("hid:"):
-            return False  # HIDDeviceManager doesn't track this state currently
+            return self._hid is not None and self._hid.is_connected(device_id)
         with self._lock:
             return device_id in self._open_ports
 

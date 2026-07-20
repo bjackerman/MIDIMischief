@@ -93,6 +93,7 @@ def test_connect_emits_normalized_events():
     fake = _FakeHid([_info(0x046D, 0xB38F, reports=[report])])
     # Provide a real descriptor so the normalizer uses boot protocol.
     from midimap.devices.descriptors import DeviceDescriptor
+
     desc = DeviceDescriptor(
         vendor_id=0x046D, product_id=0xB38F, name="POP_Icon_Keys", layout={"type": "boot"}
     )
@@ -135,6 +136,18 @@ def test_disconnect_closes_handle_and_stops_thread():
     assert fake._opened[0].closed
 
 
+def test_is_connected_tracks_connection_lifecycle():
+    fake = _FakeHid([_info(0x1, 0x1, reports=[])])
+    mgr = HIDDeviceManager(hid_module=fake)
+    device_id = mgr.list_devices()[0]["id"]
+
+    assert not mgr.is_connected(device_id)
+    mgr.connect(device_id)
+    assert mgr.is_connected(device_id)
+    mgr.disconnect(device_id)
+    assert not mgr.is_connected(device_id)
+
+
 def test_stop_terminates_all_read_loops():
     fake = _FakeHid([_info(0x1, 0x1, reports=[])])
     mgr = HIDDeviceManager(hid_module=fake)
@@ -145,6 +158,7 @@ def test_stop_terminates_all_read_loops():
     mgr.stop()
     # No more threads, no raises
     assert mgr._threads == {}
+    assert not mgr.is_connected(devs[0]["id"])
 
 
 def test_list_devices_handles_enumerate_exception():
