@@ -61,9 +61,9 @@ all = [
 midimap = "midimap.cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/bjack/MIDIMischief"
-Issues = "https://github.com/bjack/MIDIMischief/issues"
-Changelog = "https://github.com/bjack/MIDIMischief/blob/master/CHANGELOG.md"
+Homepage = "https://github.com/bjackerman/MIDIMischief"
+Issues = "https://github.com/bjackerman/MIDIMischief/issues"
+Changelog = "https://github.com/bjackerman/MIDIMischief/blob/master/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/midimap"]
