@@ -3,11 +3,8 @@
 Left: tree of available MIDI/HID devices with a Refresh button and
 Connect/Disconnect actions.
 
-Right: live event table fed by an :class:`EventBusQtBridge`.
-
-This is intentionally minimal in M4; the device render widget (visual
-pads/knobs) is on the to-do list and lands in M5 polish. The live event
-table is the most useful debug surface even without a render.
+Right: a descriptor-driven control-surface monitor and a live event table,
+both fed by an :class:`EventBusQtBridge`.
 """
 
 from __future__ import annotations
@@ -30,6 +27,7 @@ from PySide6.QtWidgets import (
 from ...devices.manager import DeviceManager
 from ...events import NormalizedEvent
 from ...gui.qt_bridge import EventBusQtBridge
+from ...gui.widgets.device_render import DeviceRenderWidget
 from ...gui.widgets.event_table import EventTableModel, EventTableView
 
 log = logging.getLogger(__name__)
@@ -64,6 +62,7 @@ class DevicesTab(QWidget):
         self._disconnect_btn.clicked.connect(self._on_disconnect)
         self._refresh_btn.clicked.connect(self._refresh)
         self._filter_edit.textChanged.connect(self._apply_filter)
+        self._device_list.currentItemChanged.connect(self._on_device_selected)
 
         left = QWidget(self)
         left_layout = QVBoxLayout(left)
@@ -78,7 +77,8 @@ class DevicesTab(QWidget):
         left_layout.addLayout(btn_row)
         left_layout.addWidget(self._status_label)
 
-        # ---- right: live event table ----
+        # ---- right: descriptor render + live event table ----
+        self._device_render = DeviceRenderWidget(parent=self)
         self._event_model = EventTableModel()
         self._event_view = EventTableView(self._event_model, self)
         self._clear_btn = QPushButton("Clear", self)
@@ -102,8 +102,10 @@ class DevicesTab(QWidget):
         right = QWidget(self)
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.addWidget(QLabel("Control surface"))
+        right_layout.addWidget(self._device_render, 1)
         right_layout.addWidget(QLabel("Live event monitor (newest first)"))
-        right_layout.addWidget(self._event_view, 1)
+        right_layout.addWidget(self._event_view, 2)
         controls = QHBoxLayout()
         controls.addWidget(self._pause_btn)
         controls.addWidget(self._clear_btn)
@@ -141,6 +143,9 @@ class DevicesTab(QWidget):
         if self._paused:
             return
         self._event_model.append_event(ev)
+        item = self._device_list.currentItem()
+        if item is not None and item.data(Qt.UserRole)["id"] == str(ev.device_id):
+            self._device_render.update_event(ev)
 
     @Slot()
     def _refresh(self) -> None:
@@ -157,6 +162,19 @@ class DevicesTab(QWidget):
             item.setData(Qt.UserRole, d)
             self._device_list.addItem(item)
         self._status_label.setText(f"{len(devices)} device(s)")
+
+    @Slot(object, object)
+    def _on_device_selected(
+        self, current: QListWidgetItem | None, _previous: QListWidgetItem | None
+    ) -> None:
+        """Show a selected HID device's descriptor, or a helpful fallback."""
+        if current is None:
+            self._device_render.set_descriptor(None)
+            return
+        device = current.data(Qt.UserRole)
+        # MIDI discovery currently exposes no descriptor metadata; HID records
+        # carry ``layout`` only when a matching descriptor was found.
+        self._device_render.set_layout(device.get("layout") if device.get("descriptor") else None)
 
     @Slot()
     def _on_connect(self) -> None:
