@@ -149,6 +149,12 @@ class DevicesTab(QWidget):
 
     @Slot()
     def _refresh(self) -> None:
+        selected_item = self._device_list.currentItem()
+        selected_id = (
+            selected_item.data(Qt.UserRole)["id"]
+            if selected_item is not None
+            else None
+        )
         try:
             devices = self._manager.list_devices()
         except Exception as e:  # pragma: no cover — backend failure
@@ -156,11 +162,16 @@ class DevicesTab(QWidget):
             self._status_label.setText(f"error: {e}")
             return
         self._device_list.clear()
+        selected_row: int | None = None
         for d in devices:
             label = f"{d['name']}  ({d['id']})"
             item = QListWidgetItem(label)
             item.setData(Qt.UserRole, d)
             self._device_list.addItem(item)
+            if d["id"] == selected_id:
+                selected_row = self._device_list.count() - 1
+        if selected_row is not None:
+            self._device_list.setCurrentRow(selected_row)
         self._status_label.setText(f"{len(devices)} device(s)")
 
     @Slot(object, object)
