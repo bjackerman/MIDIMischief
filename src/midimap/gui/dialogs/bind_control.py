@@ -54,6 +54,8 @@ from ...profile.schema import (
 log = logging.getLogger(__name__)
 
 
+# Only names accepted by BuiltinAction belong here. Process termination is
+# intentionally a risky ScriptAction, not a loosely identified builtin.
 # (display, builtin_name, param_widget_factory_or_None)
 _BUILTIN_CHOICES = [
     ("(none)", None, None),
