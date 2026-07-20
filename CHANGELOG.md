@@ -3,6 +3,47 @@
 All notable changes to MIDIMischief are documented here. Versions follow
 [SemVer](https://semver.org/).
 
+## [0.2.0] - 2026-07-20
+
+Second release. Closes three of the "known gaps" called out in the
+v0.1.0 README, and adds cross-platform packaging.
+
+### New
+- **Visual device render widget** (`gui/widgets/device_render.py`, 216
+  LOC) — paints a controller's pads/knobs/sliders from the descriptor,
+  like Ableton's MIDI-mapping overlay but live. Wired into the Devices
+  tab. 84 LOC of tests.
+- **Real MIDI hotplug reconciliation** — the v0.1.0 `_hotplug_loop`
+  was a stub. This one reconciles open ports against the current
+  device list, auto-connects per the active profile, and emits clean
+  `connect` / `disconnect` log lines.
+- **Cross-platform packaging** — `midimap.spec` (PyInstaller), NSIS
+  installer script for Windows, DMG script for macOS, AppImage script
+  for Linux, and a `.github/workflows/package.yml` CI that builds all
+  three on native GitHub-hosted runners and attaches the artifacts to
+  the workflow run.
+- **Layer controls in the profile editor** — add/rename/delete buttons
+  for layers (previously you could only switch the active layer).
+- **Preserve bindings on action edit** — `BindControlDialog` keeps the
+  original `id` + `input` when only the `action` changes.
+- **HID `is_connected()` is real** — previously returned `False` for
+  every HID device; now tracks open HID handles.
+- **More bundled device descriptors** — split the single
+  `descriptors.yaml` into per-category files
+  (`gamepads.yaml`, `macro_pads.yaml`, `midi_adjacent.yaml`,
+  `controller_boards.yaml`) so users can override one category
+  without touching the others.
+
+### Removed
+- **`quit_app` builtin** — was a stub returning `False`. Deleted; use
+  the OS-native "Quit" action via a `script` action if you really
+  need it.
+
+### Stats
+- 264 tests pass (245 → 264, +19), ruff clean, 3 platform-skipped
+- 8 merged PRs (#1, #2, #3, #4, #5, #6, #7, #9)
+- +1720 / −133 lines across 37 files
+
 ## [0.1.0] - 2026-07-19
 
 First public release. Six milestones shipped:
@@ -59,8 +100,9 @@ First public release. Six milestones shipped:
 - New mapping lands in the active profile; engine picks it up immediately
 
 ### Stats
-- 245 tests pass, ruff clean, 3 platform-skipped (macOS/Linux)
+- 245 tests pass (v0.1.0; superseded by 264 in v0.2.0), ruff clean, 3 platform-skipped
 - 8 commits on `master`
 - 1,000s of lines of code
 
+[0.2.0]: https://github.com/bjackerman/MIDIMischief/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bjackerman/MIDIMischief/releases/tag/v0.1.0

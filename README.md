@@ -17,9 +17,9 @@
 - [Library research summary](#library-research-summary)
 - [Architecture](#architecture)
 - [GUI walkthrough](#gui-walkthrough)
-- [UX / device render — known gap](#ux--device-render--known-gap)
 - [Milestone status](#milestone-status)
 - [Quick start](#quick-start)
+- [Desktop installers and platform requirements](#desktop-installers-and-platform-requirements)
 - [Profile example](#profile-example)
 - [Action reference](#action-reference)
 - [Profile versioning](#profile-versioning)
@@ -29,7 +29,6 @@
 - [Skeleton code: how events flow](#skeleton-code-how-events-flow)
 - [Open questions / known limitations](#open-questions--known-limitations)
 - [License](#license)
-
 ## What it does
 
 - **Reads MIDI** notes / CCs / velocity / pressure from any controller
@@ -37,10 +36,13 @@
   nanoKONTROL, etc.) via the standard USB-Audio class driver. Hot-plug
   and reconnect are handled: the manager re-scans on a 2 s timer and
   emits a `connect` / `disconnect` log line for every change.
-- **Reads HID** reports from gamepads, macro pads, custom boards, and
+- Reads HID reports from gamepads, macro pads, custom boards, and
   the Logitech POP Icon Keys (boot protocol). For other devices, drop a
   YAML descriptor in `~/.config/midimap/devices/<vid>:<pid>.yaml` —
-  see [Adding a HID device](#adding-a-hid-device) below.
+  see [Adding a HID device](#adding-a-hid-device) below. **As of
+  v0.2.0**, a [`device_render.py`](src/midimap/gui/widgets/device_render.py)
+  visual widget paints the controller's pads/knobs/sliders from the
+  descriptor — like Ableton's MIDI-mapping overlay but live.
 - **Maps** each event to a **keyboard combo**, **media key** (play/pause,
   volume, etc.), **OS action** (launch app, open URL, system volume),
   **shell command** (with template substitution like `$value` and
@@ -153,18 +155,6 @@ countdown widget captures the next event from any connected device and
 pre-fills the wizard. Right-clicking a live event row is the same flow
 but more discoverable.
 
-## UX / device render — known gap
-
-The design plan called for a **`device_render.py` visual widget** that
-paints a controller's pads/knobs/sliders from a descriptor — like
-Ableton's MIDI-mapping overlay, but live. **This was deferred.** What
-ships instead is the Live Event Monitor on the Devices tab: a tabular
-view of incoming events with the same information content (control
-identity, value, timestamp) but no spatial metaphor. The rest of the
-GUI works as designed; only the visual abstraction is missing. Adding
-it back is a single-file `~200 LOC` `QWidget` with a `paintEvent` that
-walks the descriptor and draws a square per pad, an arc per knob.
-
 ## Milestone status
 
 All six milestones shipped:
@@ -178,9 +168,10 @@ All six milestones shipped:
 | M5 | done | Profile hot-reload, validate/diff/export, edit-existing | [commit `5457984`](https://github.com/bjackerman/MIDIMischief/commit/5457984) |
 | M6 | done | HID + descriptors + plugins + auto-start | [commit `b8faa7a`](https://github.com/bjackerman/MIDIMischief/commit/b8faa7a) |
 | M6.5 | done | Bind from live event (right-click) | [commit `37dcac5`](https://github.com/bjackerman/MIDIMischief/commit/37dcac5) |
+| v0.2 | done | Device render widget, MIDI hotplug, descriptor split, packaging, layer controls, binding preserve, is_connected for HID, quit_app removed | [tag `v0.2.0`](https://github.com/bjackerman/MIDIMischief/releases/tag/v0.2.0) |
 
-See [CHANGELOG.md](./CHANGELOG.md) for per-milestone feature lists.
-
+**264 tests pass, ruff clean.** See [CHANGELOG.md](./CHANGELOG.md) for
+the per-version feature log.
 ## Quick start
 
 ```bash
@@ -487,13 +478,6 @@ bus.publish(NormalizedEvent(device_id="midi:ATM SQ 0",
 
 Documented honestly. PRs welcome.
 
-- **Visual device render widget is missing.** See [UX / device render —
-  known gap](#ux--device-render--known-gap) above. The live event table
-  works; the spatial metaphor was deferred.
-- **Packaging** (PyInstaller spec, NSIS, py2app, AppImage) is **not
-  built**. The project installs cleanly with `pip install -e .` and
-  runs from source. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the
-  packaging layout if you want to add it.
 - **HID exclusivity on Windows.** Some HID devices (notably raw-HID
   game controllers) are owned exclusively by other applications. The
   `connect()` call will fail with a `RuntimeError`; the Devices tab
@@ -504,10 +488,6 @@ Documented honestly. PRs welcome.
   cannot programmatically grant itself access.
 - **Linux udev.** Non-root users need a udev rule; the README has a
   one-liner. No GUI "install udev rules" action yet.
-- **No built-in profiles for common controllers.** Only the Logitech
-  POP Icon Keys ships with a built-in descriptor (it was the only HID
-  device available for testing on the dev host). Add yours as a YAML
-  file in `~/.config/midimap/devices/` — see [Adding a HID device](#adding-a-hid-device).
 - **MIDI loopback on Windows.** The dev host's ATM SQ ports don't
   deliver events through any (output × input) loopback pairing — this
   is a Windows driver quirk, not a midimap bug. End-to-end tests use
@@ -519,17 +499,10 @@ Documented honestly. PRs welcome.
 - **Plugin API is `dict[str, Any]` args, no schema.** The plugin
   registry inspects the callable's signature; the GUI uses the
   signature to build a dynamic form. There's no per-plugin
-  `PluginManifest` yet — would be a 0.2.0 addition.
+  `PluginManifest` yet — would be a 0.3.0 addition.
 - **One process per user.** The single-instance lock is
   `midimap-single-instance-{USERNAME}`. Two users on the same Windows
   host can run their own instance; that's intentional.
-
-## License
-
-[MIT](./LICENSE). See [CONTRIBUTING.md](./CONTRIBUTING.md) for the
-contribution guide.
-
-[plan]: C:\Users\bjack\.hermes\plans\2026-07-19_105037-midicontroller-desktop-app.md
 
 ## Desktop installers and platform requirements
 
@@ -566,3 +539,10 @@ On Debian/Ubuntu, install the native libraries first when wheels are unavailable
 corresponding packages are typically `alsa-lib-devel`, `hidapi`, and `fuse`.
 These packages enable device access; they do not substitute for the Python
 `[all]` dependencies.
+
+## License
+
+[MIT](./LICENSE). See [CONTRIBUTING.md](./CONTRIBUTING.md) for the
+contribution guide.
+
+[plan]: C:\Users\bjack\.hermes\plans\2026-07-19_105037-midicontroller-desktop-app.md

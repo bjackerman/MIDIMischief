@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "MIDIMischief"
-version = "0.1.0"
+version = "0.2.0"
 description = "Cross-platform MIDI/HID controller -> keyboard/script mapper"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -71,9 +71,17 @@ Changelog = "https://github.com/bjackerman/MIDIMischief/blob/master/CHANGELOG.md
 [tool.hatch.build.targets.wheel]
 packages = ["src/midimap"]
 
-# Descriptor YAML is runtime package data, not an importable Python module.
+# Descriptor YAML files are runtime package data, not importable
+# Python modules. v0.2.0 split the original single descriptors.yaml
+# into per-category files; include all of them.
 [tool.hatch.build.targets.wheel.force-include]
-"src/midimap/devices/builtin_descriptors/descriptors.yaml" = "midimap/devices/builtin_descriptors/descriptors.yaml"
+"src/midimap/devices/builtin_descriptors/controller_boards.yaml" = "midimap/devices/builtin_descriptors/controller_boards.yaml"
+"src/midimap/devices/builtin_descriptors/gamepads.yaml"         = "midimap/devices/builtin_descriptors/gamepads.yaml"
+"src/midimap/devices/builtin_descriptors/macro_pads.yaml"       = "midimap/devices/builtin_descriptors/macro_pads.yaml"
+"src/midimap/devices/builtin_descriptors/midi_adjacent.yaml"    = "midimap/devices/builtin_descriptors/midi_adjacent.yaml"
+
+[tool.hatch.build.targets.sdist.force-include]
+"src/midimap/devices/builtin_descriptors" = "midimap/devices/builtin_descriptors"
 
 # Note: the Python package import name stays `midimap` for ergonomics
 # (consistent CLI command, short import). The published project name
