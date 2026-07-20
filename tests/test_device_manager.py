@@ -19,6 +19,25 @@ from midimap.devices.manager import (
 from midimap.events import EventType, NormalizedEvent
 
 
+class _FakeHIDManager:
+    def __init__(self) -> None:
+        self.connected: set[str] = set()
+        self.queried_ids: list[str] = []
+
+    def set_emit(self, emit) -> None:
+        self.emit = emit
+
+    def is_connected(self, device_id: str) -> bool:
+        self.queried_ids.append(device_id)
+        return device_id in self.connected
+
+    def start(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        self.connected.clear()
+
+
 @pytest.mark.parametrize(
     "port,expected",
     [
@@ -91,3 +110,30 @@ def test_callback_after_stop_is_noop():
     # Only the first event should have made it through
     assert len(received) == 1
     assert received[0].control_id == "note:60"
+
+
+def test_is_connected_delegates_to_hid_manager():
+    hid = _FakeHIDManager()
+    device_id = "hid:0001:0001:abc"
+    hid.connected.add(device_id)
+    mgr = DeviceManager(hid_manager=hid)
+
+    assert mgr.is_connected(device_id)
+    assert hid.queried_ids == [device_id]
+
+
+def test_is_connected_returns_false_when_hid_is_disabled():
+    mgr = DeviceManager(hid_manager=False)
+
+    assert not mgr.is_connected("hid:0001:0001:abc")
+
+
+def test_hid_is_connected_returns_false_after_stop():
+    hid = _FakeHIDManager()
+    device_id = "hid:0001:0001:abc"
+    hid.connected.add(device_id)
+    mgr = DeviceManager(hid_manager=hid)
+
+    mgr.stop()
+
+    assert not mgr.is_connected(device_id)

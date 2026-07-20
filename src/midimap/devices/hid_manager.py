@@ -95,9 +95,7 @@ class HIDDeviceManager:
             except ImportError:
                 descriptor_paths = []  # slim env (tests, etc.)
             else:
-                descriptor_paths = default_search_paths(
-                    _Path(user_config_dir("midimap"))
-                )
+                descriptor_paths = default_search_paths(_Path(user_config_dir("midimap")))
         self._descriptors = load_all_descriptors(list(descriptor_paths))
         self._threads: dict[str, threading.Thread] = {}
         self._state_lock = threading.Lock()
@@ -112,6 +110,11 @@ class HIDDeviceManager:
     def set_emit(self, emit: Callable[[NormalizedEvent], None]) -> None:
         self._emit = emit
 
+    def is_connected(self, device_id: str) -> bool:
+        """Return whether ``device_id`` is currently open by this manager."""
+        with self._state_lock:
+            return device_id in self._devices
+
     def list_devices(self) -> list[dict[str, Any]]:
         """Enumerate HID devices currently visible to the OS."""
         if self._hid is None:
@@ -124,7 +127,11 @@ class HIDDeviceManager:
             log.warning("hidapi enumerate() failed: %s", e)
             return []
         for e in entries:
-            key = (int(e.get("vendor_id", 0)), int(e.get("product_id", 0)), e.get("serial_number", "") or "")
+            key = (
+                int(e.get("vendor_id", 0)),
+                int(e.get("product_id", 0)),
+                e.get("serial_number", "") or "",
+            )
             if key in seen:
                 continue
             seen.add(key)
@@ -134,8 +141,10 @@ class HIDDeviceManager:
                 {
                     "kind": "hid",
                     "id": f"hid:{vid:04x}:{pid:04x}:{key[2] or 'noserial'}",
-                    "name": (desc.name if desc else None) or (e.get("product_string") or f"HID {vid:04x}:{pid:04x}"),
-                    "manufacturer": (desc.manufacturer if desc else None) or e.get("manufacturer_string"),
+                    "name": (desc.name if desc else None)
+                    or (e.get("product_string") or f"HID {vid:04x}:{pid:04x}"),
+                    "manufacturer": (desc.manufacturer if desc else None)
+                    or e.get("manufacturer_string"),
                     "vendor_id": vid,
                     "product_id": pid,
                     "serial": key[2],
