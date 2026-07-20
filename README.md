@@ -21,6 +21,7 @@
 - [Milestone status](#milestone-status)
 - [Quick start](#quick-start)
 - [Profile example](#profile-example)
+- [Action reference](#action-reference)
 - [Profile versioning](#profile-versioning)
 - [Platform-specific setup](#platform-specific-setup)
 - [Project layout](#project-layout)
@@ -243,6 +244,22 @@ A full action kinds reference: `KeyboardAction`, `MediaAction`,
 `BuiltinAction`, `ScriptAction`, `PluginAction`. All are pydantic v2
 discriminated unions on the `type` field; invalid combinations are
 rejected at load time with a clear error message.
+
+## Action reference
+
+Built-in actions are limited to actions that MIDIMischief implements on
+the current platform: `launch_app`, `open_url`, `volume_up`,
+`volume_down`, `volume_mute`, `volume_set`, and `noop`. The profile
+schema rejects any other builtin name, so a saved mapping cannot refer
+to an unimplemented builtin.
+
+`quit_app` is **not** a MIDIMischief builtin and never terminates either
+the MIDIMischief process or an arbitrary target application. To close a
+specific application, use a `script` action with a command that names
+the target explicitly, set `risky: true`, and keep **Confirm risky
+scripts the first time** enabled. Scripts are the deliberate escape
+hatch for platform-specific process management; they can also be
+globally disabled in Settings.
 
 ## Profile versioning
 

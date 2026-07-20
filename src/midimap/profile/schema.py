@@ -136,10 +136,22 @@ class MediaAction(_ActionBase):
 
 
 class BuiltinAction(_ActionBase):
-    """A built-in OS action (launch app, volume set, …). Implemented in M3."""
+    """A supported built-in OS action.
+
+    Target-process termination is intentionally not a built-in action.  Use a
+    ``ScriptAction`` with ``risky=True`` for that explicit, reviewable choice.
+    """
 
     type: Literal["builtin"] = "builtin"
-    name: str
+    name: Literal[
+        "launch_app",
+        "open_url",
+        "volume_up",
+        "volume_down",
+        "volume_mute",
+        "volume_set",
+        "noop",
+    ]
     params: dict[str, Any] = Field(default_factory=dict)
 
 

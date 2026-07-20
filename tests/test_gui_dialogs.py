@@ -8,7 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
 from midimap.events import EventType, NormalizedEvent, Value
-from midimap.gui.dialogs.bind_control import BindControlDialog
+from midimap.gui.dialogs.bind_control import _BUILTIN_CHOICES, BindControlDialog
 from midimap.gui.dialogs.learn_mode import LearnModeDialog
 from midimap.gui.qt_bridge import EventBusQtBridge
 
@@ -57,6 +57,11 @@ def test_bind_dialog_script_walkthrough(qapp):  # type: ignore[no-untyped-def]
     assert m.action.type == "script"
     assert m.action.command == ["echo", "hello"]
     assert m.action.risky is True
+
+
+def test_builtin_choices_exclude_unsupported_process_termination():
+    names = {name for _label, name, _params_hint in _BUILTIN_CHOICES}
+    assert "quit_app" not in names
 
 
 def test_bind_dialog_missing_keys_fails_gracefully(qapp):  # type: ignore[no-untyped-def]

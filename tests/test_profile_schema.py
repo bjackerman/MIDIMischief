@@ -91,6 +91,15 @@ def test_action_discriminated_union_builtin():
     assert a.action.params == {"value": "$value"}
 
 
+def test_builtin_action_rejects_unimplemented_quit_app():
+    with pytest.raises(ValidationError, match="quit_app"):
+        Mapping(
+            id="x",
+            input=InputSpec(control="cc:1"),
+            action={"type": "builtin", "name": "quit_app", "params": {"name": "explorer"}},
+        )
+
+
 def test_action_discriminated_union_script():
     a = Mapping(
         id="x",
