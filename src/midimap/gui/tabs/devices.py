@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import QTimer, Slot
+from PySide6.QtCore import QTimer, Signal, Slot
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -36,7 +36,14 @@ log = logging.getLogger(__name__)
 
 
 class DevicesTab(QWidget):
-    """Devices + Live Monitor tab."""
+    """Devices + Live Monitor tab.
+
+    Forwards a right-click "Bind this control…" request from the
+    event table via :attr:`event_bound`. The main window listens
+    for this signal and opens the binding wizard pre-filled.
+    """
+
+    event_bound = Signal(object)  # NormalizedEvent
 
     def __init__(self, manager: DeviceManager, bridge: EventBusQtBridge, parent=None) -> None:  # type: ignore[no-untyped-def]
         super().__init__(parent)
@@ -77,8 +84,20 @@ class DevicesTab(QWidget):
         self._clear_btn = QPushButton("Clear", self)
         self._pause_btn = QPushButton("Pause", self)
         self._pause_btn.setCheckable(True)
+        self._bind_btn = QPushButton("Map this event…", self)
+        self._bind_btn.setToolTip(
+            "Select a row in the event table, then click to open the\n"
+            "binding wizard pre-filled with the captured control.\n"
+            "(Right-click the row for the same action.)"
+        )
+        self._bind_btn.setEnabled(False)
         self._clear_btn.clicked.connect(self._event_model.clear)
         self._pause_btn.toggled.connect(self._set_paused)
+        self._bind_btn.clicked.connect(self._on_bind_clicked)
+        self._event_view.event_bound.connect(self.event_bound.emit)
+        self._event_view.selectionModel().selectionChanged.connect(
+            self._on_event_selection_changed
+        )
 
         right = QWidget(self)
         right_layout = QVBoxLayout(right)
@@ -88,6 +107,7 @@ class DevicesTab(QWidget):
         controls = QHBoxLayout()
         controls.addWidget(self._pause_btn)
         controls.addWidget(self._clear_btn)
+        controls.addWidget(self._bind_btn)
         controls.addStretch(1)
         right_layout.addLayout(controls)
 
@@ -165,6 +185,15 @@ class DevicesTab(QWidget):
     def _set_paused(self, paused: bool) -> None:
         self._paused = paused
         self._pause_btn.setText("Resume" if paused else "Pause")
+
+    @Slot()
+    def _on_bind_clicked(self) -> None:
+        self._event_view.bind_selected_event()
+
+    @Slot()
+    def _on_event_selection_changed(self, *_args: object) -> None:  # type: ignore[no-untyped-def]
+        sel = self._event_view.selectionModel().selectedRows()
+        self._bind_btn.setEnabled(bool(sel))
 
     @Slot(str)
     def _apply_filter(self, text: str) -> None:

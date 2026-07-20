@@ -140,6 +140,11 @@ class MainWindow(QMainWindow):
         self._profile_tab.delete_binding_requested.connect(self._on_delete_binding)
         self._profile_tab.reload_profile_requested.connect(self._on_reload_profile)
 
+        # ---- Wire Devices tab "Map this event" path ----
+        # Right-click a row in the live monitor, or select a row and
+        # click "Map this event…", to open the wizard pre-filled.
+        self._devices_tab.event_bound.connect(self._on_bind_from_event)
+
     # ---- menubar ----
 
     def _build_menubar(self) -> None:
@@ -300,6 +305,24 @@ class MainWindow(QMainWindow):
             if mapping is not None:
                 self._profile_tab.add_mapping(mapping)
                 self._status_label.setText(f"added mapping {mapping.id}")
+
+    def _on_bind_from_event(self, event) -> None:  # type: ignore[no-untyped-def]
+        """Open the binding wizard pre-filled with a captured event
+        from the Devices tab live monitor.
+        """
+        from .dialogs.bind_control import BindControlDialog
+
+        dlg = BindControlDialog(initial_event=event, parent=self)
+        if dlg.exec() == dlg.DialogCode.Accepted:
+            mapping = dlg.built_mapping()
+            if mapping is not None:
+                self._profile_tab.add_mapping(mapping)
+                # Switch to the Profile tab so the user sees the new
+                # mapping land in the list.
+                self._tabs.setCurrentWidget(self._profile_tab)
+                self._status_label.setText(
+                    f"added mapping {mapping.id} from {event.control_id}"
+                )
 
     def _on_edit_binding(self, mapping_id: str) -> None:
         profile = self._profile_tab.profile()

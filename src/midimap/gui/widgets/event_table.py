@@ -16,9 +16,9 @@ import logging
 from collections import deque
 from typing import Any
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QHeaderView, QTableView
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, QPoint, Qt, Signal
+from PySide6.QtGui import QAction, QColor
+from PySide6.QtWidgets import QHeaderView, QMenu, QTableView
 
 from ...events import EventType, NormalizedEvent
 
@@ -130,9 +130,23 @@ class EventTableModel(QAbstractTableModel):
         self._rows.clear()
         self.endResetModel()
 
+    def event_at(self, row: int) -> NormalizedEvent | None:
+        """Return the :class:`NormalizedEvent` at ``row`` (newest-first)."""
+        if 0 <= row < len(self._rows):
+            return self._rows[row]
+        return None
+
 
 class EventTableView(QTableView):
-    """QTableView wired up with sensible defaults for the live monitor."""
+    """QTableView wired up with sensible defaults for the live monitor.
+
+    Right-clicking a row opens a context menu with a
+    "Bind this control…" action that emits :attr:`event_bound` with
+    the captured :class:`NormalizedEvent`. The host (typically the
+    main window) opens the binding wizard pre-filled.
+    """
+
+    event_bound = Signal(object)  # NormalizedEvent
 
     def __init__(self, model: EventTableModel | None = None, parent=None) -> None:  # type: ignore[no-untyped-def]
         super().__init__(parent)
@@ -147,6 +161,41 @@ class EventTableView(QTableView):
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         hh.setStretchLastSection(True)
+        # Right-click context menu
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._on_context_menu)
+
+    def bind_selected_event(self) -> None:
+        """Public API: bind the currently selected row (if any).
+
+        Returns the NormalizedEvent that the wizard should be opened
+        for, or None if no row is selected.
+        """
+        ev = self._selected_event()
+        if ev is not None:
+            self.event_bound.emit(ev)
+        return None  # signal-based; no return value meaningful
+
+    def _on_context_menu(self, pos: QPoint) -> None:  # type: ignore[no-untyped-def]
+        idx = self.indexAt(pos)
+        if not idx.isValid():
+            return
+        self.selectRow(idx.row())
+        menu = QMenu(self)
+        act = QAction("Bind this control…", self)
+        act.triggered.connect(self.bind_selected_event)
+        menu.addAction(act)
+        menu.exec(self.viewport().mapToGlobal(pos))
+
+    def _selected_event(self) -> NormalizedEvent | None:
+        rows = self.selectionModel().selectedRows()
+        if not rows:
+            return None
+        m = self.model()
+        if not isinstance(m, EventTableModel):
+            return None
+        row = rows[0].row()
+        return m.event_at(row)
 
 
 __all__ = ["DEFAULT_MAX_ROWS", "EventTableModel", "EventTableView"]
