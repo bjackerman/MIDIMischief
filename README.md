@@ -21,6 +21,7 @@
 - [Milestone status](#milestone-status)
 - [Quick start](#quick-start)
 - [Profile example](#profile-example)
+- [Action reference](#action-reference)
 - [Profile versioning](#profile-versioning)
 - [Platform-specific setup](#platform-specific-setup)
 - [Project layout](#project-layout)
@@ -244,6 +245,22 @@ A full action kinds reference: `KeyboardAction`, `MediaAction`,
 discriminated unions on the `type` field; invalid combinations are
 rejected at load time with a clear error message.
 
+## Action reference
+
+Built-in actions are limited to actions that MIDIMischief implements on
+the current platform: `launch_app`, `open_url`, `volume_up`,
+`volume_down`, `volume_mute`, `volume_set`, and `noop`. The profile
+schema rejects any other builtin name, so a saved mapping cannot refer
+to an unimplemented builtin.
+
+`quit_app` is **not** a MIDIMischief builtin and never terminates either
+the MIDIMischief process or an arbitrary target application. To close a
+specific application, use a `script` action with a command that names
+the target explicitly, set `risky: true`, and keep **Confirm risky
+scripts the first time** enabled. Scripts are the deliberate escape
+hatch for platform-specific process management; they can also be
+globally disabled in Settings.
+
 ## Profile versioning
 
 The schema's top-level `version` field starts at `1` and is **part of
@@ -281,8 +298,8 @@ field is a major-version bump and requires a migration script.
    `product_string` matches.
 4. Create `~/.config/midimap/devices/<vid>:<pid>.yaml` (Linux/macOS) or
    `%LOCALAPPDATA%\midimap\devices\<vid>-<pid>.yaml` (Windows) with a
-   descriptor. See `src/midimap/devices/builtin_descriptors/descriptors.yaml`
-   for the boot-keyboard example shipped with the project.
+   descriptor. See the family-specific examples under
+   `src/midimap/devices/builtin_descriptors/`.
 5. Reload (the app watches the directory and picks up the new file).
 
 ## Project layout
@@ -302,7 +319,7 @@ src/midimap/
     hid_manager.py       # HIDDeviceManager
     hid_normalizer.py    # boot-keyboard + generic layouts
     descriptors.py       # YAML/JSON device descriptors
-    builtin_descriptors/descriptors.yaml
+    builtin_descriptors/    # bundled HID catalog, split by device family
   actions/               # Action, ActionExecutor, keyboard, media, builtin, script, plugin, template
   mapping/engine.py
   profile/               # schema (pydantic v2), store, diff, watcher
@@ -513,3 +530,39 @@ Documented honestly. PRs welcome.
 contribution guide.
 
 [plan]: C:\Users\bjack\.hermes\plans\2026-07-19_105037-midicontroller-desktop-app.md
+
+## Desktop installers and platform requirements
+
+Release builds package the `midimap gui` application with PyInstaller. Every
+bundle contains the built-in HID descriptor YAML, the GUI and HID dependencies,
+and any installed distributions advertising the `midimap.plugins` entry-point.
+Third-party plugins must therefore be installed in the **build** environment;
+users can alternatively install plugins into a Python environment and run the
+source/PyPI command.
+
+| Platform | Release artifact | Install and run | System requirements |
+|---|---|---|---|
+| Windows 10/11 x64 | NSIS `...-windows-x64-setup.exe` | Run the installer, then start **MIDIMischief** from Start Menu or Desktop. | USB MIDI uses the Windows class driver. HID uses the Windows HID class driver. Grant any keyboard-input permissions requested by endpoint protection. |
+| macOS 12+ | `...-macos.dmg` containing `MIDIMischief.app` | Open the DMG, drag the app to Applications, then open it. | Approve the app in Gatekeeper if it is not notarized, and grant **Accessibility** permission in Privacy & Security before sending keyboard/media keys. MIDI uses CoreMIDI; HID uses IOHID. |
+| Linux x86_64 | `...-linux-x86_64.AppImage` | `chmod +x MIDIMischief-*.AppImage && ./MIDIMischief-*.AppImage` | A current glibc desktop plus FUSE 2 (`libfuse2` on Ubuntu/Debian). MIDI needs ALSA access; HID users normally need a `udev` rule granting their account access to `/dev/hidraw*`. Wayland compositors may restrict synthetic keyboard input. |
+
+The CI workflow builds all three artifacts on their native GitHub-hosted
+runners and attaches them to the workflow run. Tagged macOS releases can be
+Developer-ID signed and notarized when the Apple signing secrets are configured.
+Unsigned builds remain usable for local testing but prompt users more often.
+
+### Install from Python instead
+
+The installers are intended for end users. For a CLI, development checkout, or
+an architecture not covered by the release artifacts, use Python 3.10+:
+
+```bash
+python -m pip install "MIDIMischief[all]"
+midimap gui
+```
+
+On Debian/Ubuntu, install the native libraries first when wheels are unavailable:
+`sudo apt install libasound2-dev libhidapi-hidraw0 libfuse2`. On Fedora, the
+corresponding packages are typically `alsa-lib-devel`, `hidapi`, and `fuse`.
+These packages enable device access; they do not substitute for the Python
+`[all]` dependencies.

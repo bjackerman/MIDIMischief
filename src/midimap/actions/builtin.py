@@ -18,8 +18,9 @@ Cross-platform rules
 - ``volume_set``: requires ``pycaw`` on Windows (graceful no-op with a
   clear log if not installed). macOS: ``osascript``. Linux: ``pactl``
   or ``amixer``.
-- ``quit_app``: not implemented in M3; the GUI will offer a "bind a
-  script" path instead. We log and return False.
+- ``quit_app`` is deliberately not a builtin. Terminating another
+  application is inherently target-specific and needs an explicit,
+  user-reviewed script action instead.
 
 If a builtin is not supported on the current OS, we log and return
 False. The user can either switch OS or use a ScriptAction as a
@@ -136,15 +137,6 @@ def _volume_set(params: dict, *, dry_run: bool) -> bool:
     return _volume_set_pct(pct)
 
 
-def _quit_app(params: dict, *, dry_run: bool) -> bool:
-    """M3 stub — GUI will offer a "bind a script" path instead."""
-    if dry_run:
-        log.info("[DRY-RUN] quit_app: %s", params.get("name"))
-        return True
-    log.warning("quit_app builtin not implemented in M3; use a script action")
-    return False
-
-
 def _noop(params: dict, *, dry_run: bool) -> bool:
     """Useful for testing the pipeline without side effects."""
     log.debug("noop: %s", params)
@@ -158,7 +150,6 @@ _BUILTINS: dict[str, Callable[..., bool]] = {
     "volume_down": _volume_down,
     "volume_mute": _volume_mute,
     "volume_set": _volume_set,
-    "quit_app": _quit_app,
     "noop": _noop,
 }
 

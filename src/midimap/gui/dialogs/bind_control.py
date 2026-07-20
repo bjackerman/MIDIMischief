@@ -19,6 +19,7 @@ into the live :class:`Profile`.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -27,6 +28,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
     QFormLayout,
     QLabel,
     QLineEdit,
@@ -45,12 +47,15 @@ from ...profile.schema import (
     KeyboardAction,
     Mapping,
     MediaAction,
+    PluginAction,
     ScriptAction,
 )
 
 log = logging.getLogger(__name__)
 
 
+# Only names accepted by BuiltinAction belong here. Process termination is
+# intentionally a risky ScriptAction, not a loosely identified builtin.
 # (display, builtin_name, param_widget_factory_or_None)
 _BUILTIN_CHOICES = [
     ("(none)", None, None),
@@ -115,15 +120,29 @@ class BindControlDialog(QDialog):
         layout.addRow("Control:", self._control_label)
         layout.addRow("Last event:", self._event_label)
         self._event_filter_combo = QComboBox(w)
-        self._event_filter_combo.addItems(["any", "press", "release", "change"])
+        self._event_filter_combo.addItems(["any", "press", "release", "change", "tap"])
         layout.addRow("Trigger on:", self._event_filter_combo)
         self._value_min = QSpinBox(w)
-        self._value_min.setRange(0, 16383)
+        self._value_min.setRange(-1, 16383)
+        self._value_min.setSpecialValueText("any")
         self._value_max = QSpinBox(w)
-        self._value_max.setRange(0, 16383)
-        self._value_max.setValue(16383)
+        self._value_max.setRange(-1, 16383)
+        self._value_max.setSpecialValueText("any")
+        self._value_max.setValue(-1)
         layout.addRow("Value min (>=):", self._value_min)
         layout.addRow("Value max (<=):", self._value_max)
+        self._channel = QSpinBox(w)
+        self._channel.setRange(0, 16)
+        self._channel.setSpecialValueText("any")
+        layout.addRow("MIDI channel:", self._channel)
+        self._min_press_ms = QSpinBox(w)
+        self._min_press_ms.setRange(-1, 2_147_483_647)
+        self._min_press_ms.setSpecialValueText("any")
+        layout.addRow("Min press duration (ms):", self._min_press_ms)
+        self._max_press_ms = QSpinBox(w)
+        self._max_press_ms.setRange(-1, 2_147_483_647)
+        self._max_press_ms.setSpecialValueText("any")
+        layout.addRow("Max press duration (ms):", self._max_press_ms)
         if self._event is not None:
             self._apply_event(self._event)
         return w
@@ -195,9 +214,10 @@ class BindControlDialog(QDialog):
         layout = QFormLayout(w)
         self._script_cmd_edit = QLineEdit(w)
         self._script_cmd_edit.setPlaceholderText("e.g. python,C:\\path\\to\\script.py,$value")
-        layout.addRow("Command (comma-separated):", self._script_cmd_edit)
-        self._script_timeout = QSpinBox(w)
-        self._script_timeout.setRange(1, 600)
+        layout.addRow("Command (comma-separated or JSON list):", self._script_cmd_edit)
+        self._script_timeout = QDoubleSpinBox(w)
+        self._script_timeout.setRange(0.001, 1_000_000_000)
+        self._script_timeout.setDecimals(3)
         self._script_timeout.setValue(30)
         layout.addRow("Timeout (s):", self._script_timeout)
         self._script_risky = QComboBox(w)
@@ -206,14 +226,20 @@ class BindControlDialog(QDialog):
         self._script_cwd_edit = QLineEdit(w)
         self._script_cwd_edit.setPlaceholderText("(optional, defaults to home)")
         layout.addRow("Working dir:", self._script_cwd_edit)
+        self._script_env_edit = QLineEdit(w)
+        self._script_env_edit.setPlaceholderText('JSON object, e.g. {"MODE": "production"}')
+        layout.addRow("Environment:", self._script_env_edit)
         self._script_page = w
 
     def _build_plugin_form(self) -> None:
         w = QWidget(self._action_form_host)
         layout = QFormLayout(w)
-        self._plugin_combo = QComboBox(w)
-        self._plugin_combo.addItem("(plugins arrive in M6)", None)
-        layout.addRow("Plugin:", self._plugin_combo)
+        self._plugin_name_edit = QLineEdit(w)
+        self._plugin_name_edit.setPlaceholderText("plugin entry point name")
+        layout.addRow("Plugin:", self._plugin_name_edit)
+        self._plugin_params_edit = QLineEdit(w)
+        self._plugin_params_edit.setPlaceholderText('JSON object, e.g. {"workspace": 2}')
+        layout.addRow("Params:", self._plugin_params_edit)
         self._plugin_page = w
 
     def _build_save_page(self) -> QWidget:
@@ -315,7 +341,9 @@ class BindControlDialog(QDialog):
         self._event = ev
         self._apply_event(ev)
 
-    def _build_action_obj(self) -> KeyboardAction | MediaAction | BuiltinAction | ScriptAction:
+    def _build_action_obj(
+        self,
+    ) -> KeyboardAction | MediaAction | BuiltinAction | ScriptAction | PluginAction:
         kind = self._action_type.currentItem().data(Qt.UserRole)
         if kind == "keyboard":
             raw = self._keys_edit.text()
@@ -335,15 +363,19 @@ class BindControlDialog(QDialog):
             params_text = self._builtin_params_edit.text().strip()
             params: dict[str, Any] = {}
             if params_text:
-                import json
-
                 try:
                     params = json.loads(params_text)
                 except json.JSONDecodeError as e:
                     raise ValueError(f"params must be valid JSON: {e}") from e
+                if not isinstance(params, dict):
+                    raise ValueError("params must be a JSON object")
             return BuiltinAction(name=name, params=params)
         if kind == "script":
-            cmd = [c.strip() for c in self._script_cmd_edit.text().split(",") if c.strip()]
+            command_text = self._script_cmd_edit.text().strip()
+            if command_text.startswith("["):
+                cmd = self._json_command(command_text)
+            else:
+                cmd = [c.strip() for c in command_text.split(",") if c.strip()]
             if not cmd:
                 raise ValueError("script command is required")
             return ScriptAction(
@@ -351,15 +383,51 @@ class BindControlDialog(QDialog):
                 timeout_s=float(self._script_timeout.value()),
                 risky=self._script_risky.currentIndex() == 1,
                 cwd=self._script_cwd_edit.text().strip() or None,
+                env=self._json_object(self._script_env_edit.text(), "environment"),
             )
-        raise ValueError("plugin actions are not yet implemented (M6); pick another type")
+        if kind == "plugin":
+            name = self._plugin_name_edit.text().strip()
+            if not name:
+                raise ValueError("plugin name is required")
+            return PluginAction(
+                name=name,
+                params=self._json_object(self._plugin_params_edit.text(), "plugin params"),
+            )
+        raise ValueError(f"unknown action type: {kind}")
+
+    @staticmethod
+    def _json_object(text: str, field_name: str) -> dict[str, Any]:
+        """Parse an optional JSON object used by an action form."""
+        if not text.strip():
+            return {}
+        try:
+            value = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"{field_name} must be valid JSON: {e}") from e
+        if not isinstance(value, dict):
+            raise ValueError(f"{field_name} must be a JSON object")
+        return value
+
+    @staticmethod
+    def _json_command(text: str) -> list[str]:
+        """Parse a JSON command list, preserving arguments containing commas."""
+        try:
+            value = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"command must be comma-separated or a JSON list: {e}") from e
+        if not isinstance(value, list) or not all(isinstance(arg, str) and arg for arg in value):
+            raise ValueError("command JSON must be a non-empty list of strings")
+        return value
 
     def _build_mapping(self) -> Mapping:
         spec = InputSpec(
             control=self._control_label.text() or "",
             event=self._event_filter_combo.currentText() if self._event_filter_combo.currentText() != "any" else None,
-            value_min=self._value_min.value() or None,
-            value_max=self._value_max.value() if self._value_max.value() < 16383 else None,
+            channel=self._channel.value() if self._channel.value() >= 1 else None,
+            value_min=self._value_min.value() if self._value_min.value() >= 0 else None,
+            value_max=self._value_max.value() if self._value_max.value() >= 0 else None,
+            min_press_ms=self._min_press_ms.value() if self._min_press_ms.value() >= 0 else None,
+            max_press_ms=self._max_press_ms.value() if self._max_press_ms.value() >= 0 else None,
         )
         action = self._build_action_obj()
         import uuid
@@ -382,6 +450,54 @@ class BindControlDialog(QDialog):
 
     def built_mapping(self) -> Mapping | None:
         return getattr(self, "_built_mapping", None)
+
+    def set_mapping(self, mapping: Mapping) -> None:
+        """Pre-fill every editable field from ``mapping`` for an edit flow.
+
+        This is deliberately the dialog's public prefill boundary: callers
+        should not need to know about its page widgets or action-specific UI.
+        """
+        spec = mapping.input
+        self._control_label.setText(spec.control)
+        self._event_filter_combo.setCurrentText(spec.event or "any")
+        self._channel.setValue(spec.channel if spec.channel is not None else 0)
+        self._value_min.setValue(spec.value_min if spec.value_min is not None else -1)
+        self._value_max.setValue(spec.value_max if spec.value_max is not None else -1)
+        self._min_press_ms.setValue(spec.min_press_ms if spec.min_press_ms is not None else -1)
+        self._max_press_ms.setValue(spec.max_press_ms if spec.max_press_ms is not None else -1)
+        self._mapping_id_edit.setText(mapping.id)
+        self._description_edit.setText(mapping.description or "")
+
+        action = mapping.action
+        action_row = {"keyboard": 0, "media": 1, "builtin": 2, "script": 3, "plugin": 4}[action.type]
+        self._action_type.setCurrentRow(action_row)
+        if isinstance(action, KeyboardAction):
+            self._keys_edit.setText("+".join(action.keys))
+        elif isinstance(action, MediaAction):
+            self._media_combo.setCurrentText(action.key)
+        elif isinstance(action, BuiltinAction):
+            index = next(
+                (
+                    i
+                    for i in range(self._builtin_combo.count())
+                    if self._builtin_combo.itemData(i)[0] == action.name
+                ),
+                -1,
+            )
+            if index < 0:
+                self._builtin_combo.addItem(action.name, (action.name, None))
+                index = self._builtin_combo.count() - 1
+            self._builtin_combo.setCurrentIndex(index)
+            self._builtin_params_edit.setText(json.dumps(action.params))
+        elif isinstance(action, ScriptAction):
+            self._script_cmd_edit.setText(json.dumps(action.command))
+            self._script_timeout.setValue(action.timeout_s)
+            self._script_risky.setCurrentIndex(1 if action.risky else 0)
+            self._script_cwd_edit.setText(action.cwd or "")
+            self._script_env_edit.setText(json.dumps(action.env))
+        elif isinstance(action, PluginAction):
+            self._plugin_name_edit.setText(action.name)
+            self._plugin_params_edit.setText(json.dumps(action.params))
 
 
 __all__ = ["BindControlDialog"]

@@ -1,0 +1,49 @@
+# Common gamepad input reports.  These descriptors target the standard wired
+# input report exposed by each device; Bluetooth and vendor-specific modes may
+# use a different VID/PID or report layout.
+- vendor_id: 0x045E
+  product_id: 0x028E
+  name: "Microsoft Xbox 360 Controller"
+  manufacturer: "Microsoft"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 2, bit: 4, name: "button:start"}
+      - {byte: 2, bit: 5, name: "button:back"}
+      - {byte: 3, bit: 4, name: "button:a"}
+      - {byte: 3, bit: 5, name: "button:b"}
+      - {byte: 3, bit: 6, name: "button:x"}
+      - {byte: 3, bit: 7, name: "button:y"}
+    axes:
+      - {byte: 6, size: 2, signed: true, name: "axis:left_x"}
+      - {byte: 8, size: 2, signed: true, name: "axis:left_y"}
+
+- vendor_id: 0x054C
+  product_id: 0x05C4
+  name: "Sony DualShock 4"
+  manufacturer: "Sony"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 5, bit: 4, name: "button:square"}
+      - {byte: 5, bit: 5, name: "button:cross"}
+      - {byte: 5, bit: 6, name: "button:circle"}
+      - {byte: 5, bit: 7, name: "button:triangle"}
+    axes:
+      - {byte: 1, size: 1, signed: false, name: "axis:left_x"}
+      - {byte: 2, size: 1, signed: false, name: "axis:left_y"}
+
+- vendor_id: 0x057E
+  product_id: 0x2009
+  name: "Nintendo Switch Pro Controller"
+  manufacturer: "Nintendo"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 3, bit: 0, name: "button:y"}
+      - {byte: 3, bit: 1, name: "button:x"}
+      - {byte: 3, bit: 2, name: "button:b"}
+      - {byte: 3, bit: 3, name: "button:a"}
+    axes:
+      - {byte: 6, size: 2, signed: false, name: "axis:left_x"}
+      - {byte: 8, size: 2, signed: false, name: "axis:left_y"}

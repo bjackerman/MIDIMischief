@@ -32,7 +32,6 @@ def test_all_builtins_in_registry():
         "volume_down",
         "volume_mute",
         "volume_set",
-        "quit_app",
         "noop",
     }
     assert expected == set(_BUILTINS.keys())
@@ -59,7 +58,7 @@ def test_launch_app_missing_path_returns_false():
 
 
 def test_launch_app_dry_run_does_not_call_startfile():
-    with patch("os.startfile") as start:
+    with patch("os.startfile", create=True) as start:
         assert run_builtin("launch_app", {"path": "C:/notepad.exe"}, dry_run=True) is True
         start.assert_not_called()
 
@@ -90,7 +89,7 @@ def test_launch_app_linux_uses_xdg_open():
 
 
 def test_open_url_dry_run_skips():
-    with patch("os.startfile") as start, patch("subprocess.Popen") as popen:
+    with patch("os.startfile", create=True) as start, patch("subprocess.Popen") as popen:
         assert run_builtin("open_url", {"url": "https://example.com"}, dry_run=True) is True
         start.assert_not_called()
         popen.assert_not_called()
@@ -157,15 +156,12 @@ def test_volume_up_dispatches_to_volume_change(caplog):
     # to confirm the handler ran without errors.
 
 
-# ---- quit_app stub ----
+# ---- unsupported builtins ----
 
 
-def test_quit_app_stub_returns_false_in_real_mode():
-    import logging
-
-    logger = logging.getLogger("midimap.actions.builtin")
+def test_quit_app_is_not_a_registered_builtin():
+    assert "quit_app" not in _BUILTINS
     assert run_builtin("quit_app", {"name": "explorer"}) is False
-    _ = logger  # silence unused
 
 
 # ---- subprocess helper ----

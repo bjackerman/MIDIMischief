@@ -1,0 +1,36 @@
+# HID controls frequently used beside a MIDI workflow.
+- vendor_id: 0x077D
+  product_id: 0x0410
+  name: "Griffin PowerMate"
+  manufacturer: "Griffin Technology"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 1, bit: 0, name: "button:press"}
+    axes:
+      - {byte: 2, size: 1, signed: true, name: "encoder:turn"}
+
+- vendor_id: 0x0B33
+  product_id: 0x0030
+  name: "Contour ShuttleXpress"
+  manufacturer: "Contour Design"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 1, bit: 0, name: "button:0"}
+      - {byte: 1, bit: 1, name: "button:1"}
+    axes:
+      - {byte: 0, size: 1, signed: true, name: "shuttle"}
+      - {byte: 2, size: 1, signed: true, name: "jog"}
+
+- vendor_id: 0x05F3
+  product_id: 0x0241
+  name: "X-keys XK-24"
+  manufacturer: "P.I. Engineering"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 1, bit: 0, name: "key:0"}
+      - {byte: 1, bit: 1, name: "key:1"}
+      - {byte: 1, bit: 2, name: "key:2"}
+      - {byte: 1, bit: 3, name: "key:3"}

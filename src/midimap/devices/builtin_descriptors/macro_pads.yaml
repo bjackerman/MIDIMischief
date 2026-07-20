@@ -1,0 +1,36 @@
+# Macro pads and programmable key decks.  Button offsets include the HID
+# report-ID byte when the device sends one through hidapi.
+- vendor_id: 0x0FD9
+  product_id: 0x0060
+  name: "Elgato Stream Deck (Original)"
+  manufacturer: "Elgato"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 1, bit: 0, name: "key:0"}
+      - {byte: 1, bit: 1, name: "key:1"}
+      - {byte: 1, bit: 2, name: "key:2"}
+      - {byte: 1, bit: 3, name: "key:3"}
+      - {byte: 1, bit: 4, name: "key:4"}
+      - {byte: 1, bit: 5, name: "key:5"}
+
+- vendor_id: 0x0FD9
+  product_id: 0x006C
+  name: "Elgato Stream Deck MK.2"
+  manufacturer: "Elgato"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 1, bit: 0, name: "key:0"}
+      - {byte: 1, bit: 1, name: "key:1"}
+      - {byte: 1, bit: 2, name: "key:2"}
+      - {byte: 1, bit: 3, name: "key:3"}
+      - {byte: 1, bit: 4, name: "key:4"}
+      - {byte: 1, bit: 5, name: "key:5"}
+
+- vendor_id: 0x239A
+  product_id: 0x8107
+  name: "Adafruit MacroPad RP2040"
+  manufacturer: "Adafruit"
+  layout:
+    type: boot

@@ -6,6 +6,7 @@ by the ``monitor`` CLI command, not by these unit tests.
 from __future__ import annotations
 
 import time
+from unittest.mock import Mock
 
 import mido
 import pytest
@@ -137,3 +138,65 @@ def test_hid_is_connected_returns_false_after_stop():
     mgr.stop()
 
     assert not mgr.is_connected(device_id)
+class _PollingStop:
+    """Deterministic stand-in for Event used to run the polling loop inline."""
+
+    def __init__(self, stop_after_waits: int) -> None:
+        self._stop_after_waits = stop_after_waits
+        self._waits = 0
+        self._set = False
+
+    def is_set(self) -> bool:
+        return self._set
+
+    def wait(self, _timeout: float) -> bool:
+        self._waits += 1
+        if self._waits >= self._stop_after_waits:
+            self._set = True
+        return self._set
+
+
+def test_hotplug_loop_closes_disappeared_port_and_reconnects_it(monkeypatch):
+    """A manually connected port remains intended after unplug/replug."""
+    ports = iter([["Controller"], [], ["Controller"]])
+    monkeypatch.setattr(mido, "get_input_names", lambda: next(ports))
+    first_port = Mock()
+    reconnected_port = Mock()
+    open_input = Mock(side_effect=[first_port, reconnected_port])
+    monkeypatch.setattr(mido, "open_input", open_input)
+    events: list[dict[str, str]] = []
+    mgr = DeviceManager(hid_manager=False, hotplug_callback=events.append)
+
+    mgr.connect("midi:Controller")
+    mgr._stop = _PollingStop(stop_after_waits=3)  # type: ignore[assignment]
+    mgr._hotplug_loop()
+
+    assert open_input.call_args_list[0].args == ("Controller",)
+    assert open_input.call_args_list[1].args == ("Controller",)
+    first_port.close.assert_called_once()
+    assert [event["event"] for event in events] == [
+        "connected",
+        "disconnected",
+        "reconnected",
+    ]
+    assert "midi:Controller" in mgr._open_ports
+
+
+def test_hotplug_loop_only_auto_connects_ports_selected_by_hook(monkeypatch):
+    ports = iter([[], ["Wanted Controller", "Unrelated Controller"]])
+    monkeypatch.setattr(mido, "get_input_names", lambda: next(ports))
+    open_input = Mock(return_value=Mock())
+    monkeypatch.setattr(mido, "open_input", open_input)
+    selected: list[str] = []
+
+    def select_wanted(device: dict[str, str]) -> bool:
+        selected.append(device["name"])
+        return device["name"] == "Wanted Controller"
+
+    mgr = DeviceManager(hid_manager=False, device_selector=select_wanted)
+    mgr._stop = _PollingStop(stop_after_waits=2)  # type: ignore[assignment]
+    mgr._hotplug_loop()
+
+    open_input.assert_called_once()
+    assert open_input.call_args.args == ("Wanted Controller",)
+    assert set(selected) == {"Wanted Controller", "Unrelated Controller"}

@@ -49,7 +49,12 @@ class App:
             confirm_risky = profile.confirm_risky
 
         self.bus = EventBus()
-        self.devices = DeviceManager()
+        # Keep hot-plug auto-connection constrained to the active profile.
+        # Without this hook DeviceManager never auto-connects newly discovered
+        # MIDI ports, which avoids attaching unrelated controllers.
+        self.devices = DeviceManager(
+            device_selector=profile.matches_device if auto_connect else None
+        )
         self.engine = MappingEngine(profile)
         self.executor = ActionExecutor(
             dry_run=dry_run,
