@@ -3,13 +3,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "midimap"
+name = "MIDIMischief"
 version = "0.1.0"
 description = "Cross-platform MIDI/HID controller -> keyboard/script mapper"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Brian" }]
+authors = [{ name = "Brian Ackerman", email = "bjackerman@gmail.com" }]
 keywords = ["midi", "hid", "controller", "mapper", "keyboard", "automation"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -61,12 +61,17 @@ all = [
 midimap = "midimap.cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/ctrlaltbrian/midimap"
-Issues = "https://github.com/ctrlaltbrian/midimap/issues"
-Changelog = "https://github.com/ctrlaltbrian/midimap/blob/master/CHANGELOG.md"
+Homepage = "https://github.com/ctrlaltbrian/MIDIMischief"
+Issues = "https://github.com/ctrlaltbrian/MIDIMischief/issues"
+Changelog = "https://github.com/ctrlaltbrian/MIDIMischief/blob/master/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/midimap"]
+
+# Note: the Python package import name stays `midimap` for ergonomics
+# (consistent CLI command, short import). The published project name
+# is `MIDIMischief`. This is the same pattern as pip install Pillow
+# -> import PIL.
 
 [tool.ruff]
 line-length = 100

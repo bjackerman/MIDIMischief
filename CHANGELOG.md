@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to midimap are documented here. Versions follow
+All notable changes to MIDIMischief are documented here. Versions follow
 [SemVer](https://semver.org/).
 
 ## [0.1.0] - 2026-07-19
@@ -63,4 +63,4 @@ First public release. Six milestones shipped:
 - 8 commits on `master`
 - 1,000s of lines of code
 
-[0.1.0]: https://github.com/ctrlaltbrian/midimap/releases/tag/v0.1.0
+[0.1.0]: https://github.com/ctrlaltbrian/MIDIMischief/releases/tag/v0.1.0

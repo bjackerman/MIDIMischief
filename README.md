@@ -1,8 +1,10 @@
-# midimap
+# MIDIMischief
 
 > Cross-platform desktop app that maps USB MIDI controllers and USB
 > HID devices to keyboard shortcuts, OS-level actions, and user-defined
 > scripts. Free, open-source, no DAW or proprietary drivers required.
+> The Python package is still imported as `midimap` (shorter, ergonomic
+> CLI command). The project is published as **MIDIMischief**.
 
 [![Tests](https://img.shields.io/badge/tests-245%20passing-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
@@ -33,13 +35,13 @@ All six milestones shipped:
 
 | | | | |
 |--|--|--|--|
-| M1 | done | MIDI input + live monitor CLI | [commit `f3c3901`](https://github.com/ctrlaltbrian/midimap/commit/f3c3901) |
-| M2 | done | Mapping engine + keyboard output | [commit `6914df9`](https://github.com/ctrlaltbrian/midimap/commit/6914df9) |
-| M3 | done | Scripts, builtins, media, templates, safety | [commit `29649d4`](https://github.com/ctrlaltbrian/midimap/commit/29649d4) |
-| M4 | done | PySide6 GUI editor | [commit `3b5dfee`](https://github.com/ctrlaltbrian/midimap/commit/3b5dfee) |
-| M5 | done | Profile hot-reload, validate/diff/export, edit-existing | [commit `5457984`](https://github.com/ctrlaltbrian/midimap/commit/5457984) |
-| M6 | done | HID + descriptors + plugins + auto-start | [commit `b8faa7a`](https://github.com/ctrlaltbrian/midimap/commit/b8faa7a) |
-| M6.5 | done | Bind from live event (right-click) | [commit `37dcac5`](https://github.com/ctrlaltbrian/midimap/commit/37dcac5) |
+| M1 | done | MIDI input + live monitor CLI | [commit `f3c3901`](https://github.com/ctrlaltbrian/MIDIMischief/commit/f3c3901) |
+| M2 | done | Mapping engine + keyboard output | [commit `6914df9`](https://github.com/ctrlaltbrian/MIDIMischief/commit/6914df9) |
+| M3 | done | Scripts, builtins, media, templates, safety | [commit `29649d4`](https://github.com/ctrlaltbrian/MIDIMischief/commit/29649d4) |
+| M4 | done | PySide6 GUI editor | [commit `3b5dfee`](https://github.com/ctrlaltbrian/MIDIMischief/commit/3b5dfee) |
+| M5 | done | Profile hot-reload, validate/diff/export, edit-existing | [commit `5457984`](https://github.com/ctrlaltbrian/MIDIMischief/commit/5457984) |
+| M6 | done | HID + descriptors + plugins + auto-start | [commit `b8faa7a`](https://github.com/ctrlaltbrian/MIDIMischief/commit/b8faa7a) |
+| M6.5 | done | Bind from live event (right-click) | [commit `37dcac5`](https://github.com/ctrlaltbrian/MIDIMischief/commit/37dcac5) |
 
 **245 tests pass, ruff clean.** See [CHANGELOG.md](./CHANGELOG.md) for
 the full list of features per milestone.
@@ -151,10 +153,6 @@ contribution guide and the [full design plan][plan] for the
 architecture rationale.
 
 [plan]: C:\Users\bjack\.hermes\plans\2026-07-19_105037-midicontroller-desktop-app.md
-
-src/midimap/
-  __init__.py            # version
-  logging_setup.py
   events.py              # NormalizedEvent, EventType, Value
   event_bus.py           # pub/sub with drop-oldest per-subscriber queues
   app.py                 # App: DeviceManager -> EventBus -> Engine -> Executor
