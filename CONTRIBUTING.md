@@ -140,3 +140,48 @@ plugin accepts it. See `src/midimap/plugins/registry.py`.
 
 By contributing, you agree to license your contributions under the
 project's [MIT License](./LICENSE).
+
+## Packaging desktop releases
+
+Packaging is defined in the root [`midimap.spec`](./midimap.spec), with native
+installer helpers under [`packaging/`](./packaging) and CI in
+[`.github/workflows/package.yml`](./.github/workflows/package.yml). Release
+builds require Python 3.10+ and all optional runtime dependencies because the
+frozen application deliberately includes GUI (`PySide6`) and HID (`hidapi`)
+support:
+
+```bash
+python -m pip install ".[all,package]"
+python -m PyInstaller --noconfirm --clean --distpath dist midimap.spec
+```
+
+The spec includes runtime descriptor data and installed `midimap.plugins`
+entry-points. Install any plugin distribution into the same virtualenv before
+running PyInstaller, then smoke-test the frozen binary with:
+
+```bash
+./dist/MIDIMischief gui       # Linux/macOS executable (macOS is inside .app)
+# Windows: .\dist\MIDIMischief.exe gui
+```
+
+### Native installer commands
+
+- **Windows:** Install [NSIS](https://nsis.sourceforge.io/) and run
+  `makensis /DVERSION=0.1.0 /DDIST_DIR=dist packaging/windows/MIDIMischief.nsi`.
+  This produces the x64 setup executable and Start Menu/Desktop shortcuts.
+- **macOS:** Run `bash packaging/macos/create_dmg.sh`. For a distributable
+  release, export `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, and
+  `APPLE_APP_PASSWORD`, then run `bash packaging/macos/sign_and_notarize.sh`.
+  The latter Developer-ID-signs the app and DMG, submits it to Apple, and
+  staples the notarization ticket.
+- **Linux:** Install `appimagetool` and FUSE 2, then run
+  `bash packaging/linux/build_appimage.sh`. The AppImage itself is portable;
+  developers still need ALSA and hidapi development/runtime libraries when
+  building native Python dependencies.
+
+Do not commit signing credentials, certificates, provisioning profiles, or
+notarization passwords. The package workflow signs/notarizes only tagged macOS
+builds when its `APPLE_*` secrets are present. Validate every installer on a
+clean platform VM before publishing; in particular verify macOS Accessibility,
+Linux `udev` HID access, and that the required external plugin entry-points are
+visible in Settings.

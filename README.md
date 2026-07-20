@@ -513,3 +513,39 @@ Documented honestly. PRs welcome.
 contribution guide.
 
 [plan]: C:\Users\bjack\.hermes\plans\2026-07-19_105037-midicontroller-desktop-app.md
+
+## Desktop installers and platform requirements
+
+Release builds package the `midimap gui` application with PyInstaller. Every
+bundle contains the built-in HID descriptor YAML, the GUI and HID dependencies,
+and any installed distributions advertising the `midimap.plugins` entry-point.
+Third-party plugins must therefore be installed in the **build** environment;
+users can alternatively install plugins into a Python environment and run the
+source/PyPI command.
+
+| Platform | Release artifact | Install and run | System requirements |
+|---|---|---|---|
+| Windows 10/11 x64 | NSIS `...-windows-x64-setup.exe` | Run the installer, then start **MIDIMischief** from Start Menu or Desktop. | USB MIDI uses the Windows class driver. HID uses the Windows HID class driver. Grant any keyboard-input permissions requested by endpoint protection. |
+| macOS 12+ | `...-macos.dmg` containing `MIDIMischief.app` | Open the DMG, drag the app to Applications, then open it. | Approve the app in Gatekeeper if it is not notarized, and grant **Accessibility** permission in Privacy & Security before sending keyboard/media keys. MIDI uses CoreMIDI; HID uses IOHID. |
+| Linux x86_64 | `...-linux-x86_64.AppImage` | `chmod +x MIDIMischief-*.AppImage && ./MIDIMischief-*.AppImage` | A current glibc desktop plus FUSE 2 (`libfuse2` on Ubuntu/Debian). MIDI needs ALSA access; HID users normally need a `udev` rule granting their account access to `/dev/hidraw*`. Wayland compositors may restrict synthetic keyboard input. |
+
+The CI workflow builds all three artifacts on their native GitHub-hosted
+runners and attaches them to the workflow run. Tagged macOS releases can be
+Developer-ID signed and notarized when the Apple signing secrets are configured.
+Unsigned builds remain usable for local testing but prompt users more often.
+
+### Install from Python instead
+
+The installers are intended for end users. For a CLI, development checkout, or
+an architecture not covered by the release artifacts, use Python 3.10+:
+
+```bash
+python -m pip install "MIDIMischief[all]"
+midimap gui
+```
+
+On Debian/Ubuntu, install the native libraries first when wheels are unavailable:
+`sudo apt install libasound2-dev libhidapi-hidraw0 libfuse2`. On Fedora, the
+corresponding packages are typically `alsa-lib-devel`, `hidapi`, and `fuse`.
+These packages enable device access; they do not substitute for the Python
+`[all]` dependencies.
