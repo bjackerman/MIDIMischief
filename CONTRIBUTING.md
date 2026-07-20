@@ -78,10 +78,74 @@ version is:
    matches.
 3. Create a YAML file under
    `~/.config/midimap/devices/<your_vid>:<your_pid>.yaml` with a
-   descriptor. See `src/midimap/devices/builtin_descriptors/descriptors.yaml`
-   for the boot-keyboard example.
+   descriptor. See the focused examples in
+   `src/midimap/devices/builtin_descriptors/`.
 4. The matching `DeviceDescriptor` is loaded at startup. User-level
    files override shipped defaults on a `(vid, pid)` basis.
+
+### Descriptor contribution format
+
+Bundled descriptors are YAML lists. Add a device to the appropriate family
+file under `src/midimap/devices/builtin_descriptors/` (or create a clearly
+named family file). Every entry needs a USB `vendor_id`, `product_id`, and a
+`layout`; use hexadecimal IDs so they are easy to compare with operating
+system and hidapi output.
+
+```yaml
+- vendor_id: 0x1234
+  product_id: 0x5678
+  name: "Example Controller"
+  manufacturer: "Example, Inc."       # optional
+  layout:
+    type: generic
+    buttons:
+      - {byte: 1, bit: 0, name: "button:play"}
+    axes:
+      - {byte: 2, size: 1, signed: false, name: "knob:tempo"}
+```
+
+`type: boot` decodes an eight-byte USB boot-keyboard report as `mod:*` and
+`key:<usage>` controls. `type: generic` accepts `buttons` and `axes`:
+
+- A button has a zero-based report `byte`, a `bit` from 0 through 7, and an
+  optional stable `name`. It emits `PRESS` and `RELEASE` as that bit changes.
+- An axis has a zero-based report `byte`, `size` of 1, 2, or 4 bytes,
+  optional `signed` (default `false`), and an optional stable `name`. It emits
+  a `CHANGE` event for every report.
+- Byte offsets are into the data returned by hidapi. Include the report-ID
+  byte when hidapi returns it; do not include it when the backend strips it.
+
+Use control names that describe the physical control rather than its current
+mapping (for example, `button:play`, `encoder:turn`, or `axis:left_x`). Do not
+reuse a VID/PID for a different interface layout: describe the tested HID
+input interface, and note mode limitations in a YAML comment when needed.
+
+### Capturing a HID report
+
+Capture reports before proposing a descriptor; product documentation alone is
+not enough because wired, Bluetooth, and compatibility modes can differ.
+
+1. Identify the HID interface and IDs with:
+
+   ```bash
+   python -c "import hid; [print(d) for d in hid.enumerate()]"
+   ```
+
+2. Use a short script (or an existing HID monitor) to print `list(device.read(64))`
+   while operating **one control at a time**: idle, press, release, and each
+   direction/extreme for axes. Record whether a report-ID byte is present.
+3. Compare idle and active reports to identify the changing byte/bit or
+   little-endian axis field. Repeat after reconnecting and in every supported
+   transport/mode.
+4. Add a representative idle-to-active report pair to
+   `tests/fixtures/builtin_hid_reports.yaml` and its expected normalized
+   control. The fixture test loads the shipped descriptor and prevents future
+   offset regressions.
+5. Run `python -m pytest tests/test_hid.py` and `python -m ruff check src tests`.
+
+Never commit serial numbers, device paths, user names, or a complete raw HID
+dump that could contain unrelated input. Keep fixtures to the smallest report
+that demonstrates the field being described.
 
 ## Adding a plugin
 

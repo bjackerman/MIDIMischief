@@ -1,0 +1,29 @@
+# USB controller boards commonly used for custom MIDI-adjacent controls.
+- vendor_id: 0x2341
+  product_id: 0x8036
+  name: "Arduino Leonardo"
+  manufacturer: "Arduino"
+  layout:
+    type: boot
+
+- vendor_id: 0x2E8A
+  product_id: 0x000A
+  name: "Raspberry Pi Pico"
+  manufacturer: "Raspberry Pi"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 0, bit: 0, name: "button:0"}
+    axes:
+      - {byte: 1, size: 1, signed: false, name: "axis:0"}
+
+- vendor_id: 0x16C0
+  product_id: 0x0486
+  name: "Teensyduino RawHID"
+  manufacturer: "PJRC"
+  layout:
+    type: generic
+    buttons:
+      - {byte: 0, bit: 0, name: "button:0"}
+    axes:
+      - {byte: 1, size: 2, signed: false, name: "axis:0"}
