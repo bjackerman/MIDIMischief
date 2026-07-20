@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+import pytest
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
@@ -11,6 +13,13 @@ from midimap.events import EventType, NormalizedEvent, Value
 from midimap.gui.dialogs.bind_control import BindControlDialog
 from midimap.gui.dialogs.learn_mode import LearnModeDialog
 from midimap.gui.qt_bridge import EventBusQtBridge
+from midimap.profile.schema import (
+    BuiltinAction,
+    InputSpec,
+    Mapping,
+    PluginAction,
+    ScriptAction,
+)
 
 
 def _ev() -> NormalizedEvent:
@@ -69,6 +78,47 @@ def test_bind_dialog_missing_keys_fails_gracefully(qapp):  # type: ignore[no-unt
     # Build failed; result is still Rejected (default), built_mapping is None
     assert dlg.built_mapping() is None
     assert dlg.result() != dlg.DialogCode.Accepted
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        BuiltinAction(name="volume_set", params={"value": "$value", "step": 3}),
+        ScriptAction(
+            command=["python", "-c", "print('hello, world')"],
+            timeout_s=12.5,
+            risky=True,
+            cwd="/tmp/midimap",
+            env={"MODE": "test", "COUNT": "2"},
+        ),
+        PluginAction(name="switch_workspace", params={"workspace": 2, "silent": True}),
+    ],
+    ids=["builtin", "script", "plugin"],
+)
+def test_bind_dialog_edit_and_save_preserves_action_serialization(qapp, action):  # type: ignore[no-untyped-def]
+    """Editing must not discard fields that only the action form exposes."""
+    original = Mapping(
+        id=f"{action.type}_mapping",
+        input=InputSpec(
+            control="note:60",
+            event="release",
+            channel=4,
+            value_min=0,
+            value_max=127,
+            min_press_ms=25,
+            max_press_ms=900,
+        ),
+        action=action,
+        description="round trip",
+    )
+    dlg = BindControlDialog()
+    dlg.set_mapping(original)
+    dlg._save()  # type: ignore[no-untyped-def]
+
+    assert dlg.result() == dlg.DialogCode.Accepted
+    edited = dlg.built_mapping()
+    assert edited is not None
+    assert edited.model_dump(mode="json") == original.model_dump(mode="json")
 
 
 def test_learn_mode_captures_event(qapp):  # type: ignore[no-untyped-def]

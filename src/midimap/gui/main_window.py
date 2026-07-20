@@ -344,25 +344,7 @@ class MainWindow(QMainWindow):
         from .dialogs.bind_control import BindControlDialog
 
         dlg = BindControlDialog(parent=self)
-        # Pre-fill the wizard with the existing mapping's input and action.
-        dlg._control_label.setText(existing.input.control)
-        dlg._event_filter_combo.setCurrentText(existing.input.event or "any")
-        if existing.input.value_min is not None:
-            dlg._value_min.setValue(existing.input.value_min)
-        if existing.input.value_max is not None:
-            dlg._value_max.setValue(existing.input.value_max)
-        dlg._mapping_id_edit.setText(existing.id)
-        dlg._description_edit.setText(existing.description or "")
-        # Pre-fill the action form according to its type.
-        if existing.action.type == "keyboard":
-            dlg._keys_edit.setText("+".join(existing.action.keys))
-        elif existing.action.type == "media":
-            idx = dlg._media_combo.findText(existing.action.key)
-            if idx >= 0:
-                dlg._media_combo.setCurrentIndex(idx)
-        # (script/builtin forms are not pre-filled in M5; the user
-        # can re-enter them if needed. This is documented in the
-        # plan as a future improvement.)
+        dlg.set_mapping(existing)
         if dlg.exec() == dlg.DialogCode.Accepted:
             new_mapping = dlg.built_mapping()
             if new_mapping is not None:
