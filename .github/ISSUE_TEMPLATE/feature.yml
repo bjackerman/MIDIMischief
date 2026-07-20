@@ -1,0 +1,35 @@
+---
+name: Feature request
+about: Suggest a new feature or improvement
+title: "[feature] "
+labels: ["enhancement"]
+assignees: []
+---
+
+## What do you want?
+
+A short description of the feature.
+
+## Why do you want it?
+
+What is the workflow it would unlock? What workarounds do you use today?
+
+## How should it work?
+
+Sketch the user-facing flow:
+
+- Where in the GUI does the new control live? (new tab? new button?)
+- What profile schema change does it need? (if any)
+- Does it need a new device backend, a new action kind, or just a UI
+  tweak?
+
+## Alternatives considered
+
+What other approaches did you consider? (e.g. extending an existing
+action kind vs adding a new one)
+
+## Priority
+
+- blocker: I cannot do X today at all
+- high: I can do X but it is painful
+- low: nice to have

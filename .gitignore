@@ -10,3 +10,10 @@ dist/
 venv/
 *.log
 .DS_Store
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg
+.tox/
+.idea/
+.vscode/
