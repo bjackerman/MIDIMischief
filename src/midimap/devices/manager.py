@@ -27,6 +27,8 @@ from .midi_normalizer import midi_to_normalized
 log = logging.getLogger(__name__)
 
 EventCallback = Callable[[NormalizedEvent], None]
+DeviceSelector = Callable[[dict[str, Any]], bool]
+HotplugEventCallback = Callable[[dict[str, str]], None]
 
 
 class DeviceManager:
@@ -38,6 +40,12 @@ class DeviceManager:
         A pre-configured ``HIDDeviceManager`` (or anything that
         implements the same list/connect/disconnect protocol). Pass
         ``None`` to skip HID support, or a fake for tests.
+    device_selector:
+        Optional profile/device predicate invoked for newly discovered MIDI
+        ports. Only selected ports are automatically connected.
+    hotplug_callback:
+        Optional callback receiving a mapping with ``event``, ``device_id``,
+        ``port_name``, and ``kind`` for MIDI connection lifecycle changes.
     """
 
     def __init__(
@@ -45,10 +53,19 @@ class DeviceManager:
         poll_interval_s: float = 2.0,
         *,
         hid_manager: HIDDeviceManager | None | bool = True,
+        device_selector: DeviceSelector | None = None,
+        hotplug_callback: HotplugEventCallback | None = None,
     ) -> None:
         self._poll_interval_s = poll_interval_s
         self._callbacks: list[EventCallback] = []
         self._open_ports: dict[str, mido.ports.BasePort] = {}
+        # Ports explicitly connected by the caller are remembered across a
+        # physical disconnect.  ``disconnect()`` removes this intent.
+        self._reconnect_ports: set[str] = set()
+        # This is deliberately opt-in: a profile can pass ``matches_device``
+        # here, while the GUI/monitor never attaches unrelated controllers.
+        self._device_selector = device_selector
+        self._hotplug_callback = hotplug_callback
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._hotplug_thread: threading.Thread | None = None
@@ -129,7 +146,7 @@ class DeviceManager:
                 log.exception("HID list_devices failed")
         return out
 
-    def connect(self, device_id: str) -> None:
+    def connect(self, device_id: str, *, _event: str = "connected") -> None:
         if device_id.startswith("hid:"):
             if self._hid is None:
                 raise RuntimeError("HID backend not enabled")
@@ -150,7 +167,8 @@ class DeviceManager:
                 log.error("cannot open %s: %s", device_id, e)
                 raise
             self._open_ports[device_id] = port
-            log.info("connected (midi) %s", device_id)
+            self._reconnect_ports.add(device_id)
+        self._notify_hotplug(_event, device_id)
 
     def disconnect(self, device_id: str) -> None:
         if device_id.startswith("hid:"):
@@ -161,12 +179,13 @@ class DeviceManager:
             return
         with self._lock:
             port = self._open_ports.pop(device_id, None)
+            self._reconnect_ports.discard(device_id)
         if port is not None:
             try:
                 port.close()
             except Exception:
                 log.warning("error closing %s", device_id, exc_info=True)
-            log.info("disconnected (midi) %s", device_id)
+            self._notify_hotplug("disconnected", device_id)
 
     def is_connected(self, device_id: str) -> bool:
         if device_id.startswith("hid:"):
@@ -189,12 +208,81 @@ class DeviceManager:
 
         return _cb
 
+    def _notify_hotplug(self, event: str, device_id: str) -> None:
+        """Log and publish a lifecycle event for a MIDI connection change."""
+        payload = {
+            "event": event,
+            "device_id": device_id,
+            "port_name": _port_name_from_id(device_id),
+            "kind": "midi",
+        }
+        log.info("midi_hotplug event=%s device_id=%s", event, device_id)
+        if self._hotplug_callback is not None:
+            try:
+                self._hotplug_callback(payload)
+            except Exception:
+                log.exception("hotplug callback raised (continuing)")
+
+    def _should_auto_connect(self, port_name: str) -> bool:
+        """Return whether the configured profile/device hook selects a port."""
+        if self._device_selector is None:
+            return False
+        device = {"id": _device_id(port_name), "name": port_name, "kind": "midi"}
+        try:
+            return self._device_selector(device)
+        except Exception:
+            log.exception("device selector failed for %s", port_name)
+            return False
+
+    def _reconcile_input_ports(self, previous: set[str], current: set[str]) -> None:
+        """Apply one MIDI-port snapshot transition to open connections."""
+        removed = previous - current
+        added = current - previous
+
+        for port_name in removed:
+            device_id = _device_id(port_name)
+            with self._lock:
+                port = self._open_ports.pop(device_id, None)
+            if port is None:
+                continue
+            try:
+                port.close()
+            except Exception:
+                log.warning("error closing vanished port %s", device_id, exc_info=True)
+            self._notify_hotplug("disconnected", device_id)
+
+        for port_name in added:
+            device_id = _device_id(port_name)
+            with self._lock:
+                reconnecting = device_id in self._reconnect_ports
+                already_open = device_id in self._open_ports
+            if already_open or not (reconnecting or self._should_auto_connect(port_name)):
+                continue
+            try:
+                self.connect(device_id, _event="reconnected" if reconnecting else "connected")
+            except OSError:
+                # A port can disappear between get_input_names() and open_input().
+                log.warning("midi_hotplug event=connect_failed device_id=%s", device_id)
+                continue
+
     def _hotplug_loop(self) -> None:
-        """Re-scan on a timer. M1 just logs; M2+ will auto-connect per profile."""
+        """Poll MIDI input names and reconcile disappeared/newly selected ports."""
+        try:
+            previous = set(mido.get_input_names())
+        except Exception:
+            log.exception("midi_hotplug event=initial_scan_failed")
+            previous = set()
         while not self._stop.is_set():
             self._stop.wait(self._poll_interval_s)
             if self._stop.is_set():
                 break
+            try:
+                current = set(mido.get_input_names())
+            except Exception:
+                log.exception("midi_hotplug event=scan_failed")
+                continue
+            self._reconcile_input_ports(previous, current)
+            previous = current
 
 
 # ---- helpers ----
@@ -222,4 +310,10 @@ def filter_devices(
     return [d for d in devices if needle in d["name"].lower()]
 
 
-__all__ = ["DeviceManager", "EventCallback", "filter_devices"]
+__all__ = [
+    "DeviceManager",
+    "DeviceSelector",
+    "EventCallback",
+    "HotplugEventCallback",
+    "filter_devices",
+]
