@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=MIDIMischief
+Comment=Map MIDI and HID controllers to keyboard shortcuts and scripts
+Exec=MIDIMischief gui
+Terminal=false
+Categories=AudioVideo;Utility;

@@ -49,6 +49,9 @@ dev = [
     "pytest>=8.0,<10.0",
     "ruff>=0.5,<1.0",
 ]
+package = [
+    "pyinstaller>=6.0,<7.0",
+]
 all = [
     "pynput>=1.7,<2.0",
     "pydantic>=2.5,<3.0",
@@ -67,6 +70,10 @@ Changelog = "https://github.com/bjackerman/MIDIMischief/blob/master/CHANGELOG.md
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/midimap"]
+
+# Descriptor YAML is runtime package data, not an importable Python module.
+[tool.hatch.build.targets.wheel.force-include]
+"src/midimap/devices/builtin_descriptors/descriptors.yaml" = "midimap/devices/builtin_descriptors/descriptors.yaml"
 
 # Note: the Python package import name stays `midimap` for ergonomics
 # (consistent CLI command, short import). The published project name
