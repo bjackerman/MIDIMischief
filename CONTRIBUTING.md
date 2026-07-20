@@ -6,7 +6,7 @@ one user-base, one repo. PRs and issues are welcome.
 ## Development setup
 
 ```bash
-git clone https://github.com/ctrlaltbrian/MIDIMischief
+git clone https://github.com/bjack/MIDIMischief
 cd MIDIMischief
 python -m pip install -e ".[all,dev]"
 ```
@@ -56,7 +56,7 @@ DeviceManager ──► EventBus ──► MappingEngine ──► ActionExecuto
 
 The full design doc lives in
 [`C:\Users\bjack\.hermes\plans\2026-07-19_105037-midicontroller-desktop-app.md`](
-in the upstream `ctrlaltbrian/MIDIMischief` design plan) — but the short
+in the upstream `bjack/MIDIMischief` design plan) — but the short
 version is:
 
 - **`devices/`** is swappable. New backends (e.g. native Win32 raw HID,
