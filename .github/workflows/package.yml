@@ -51,9 +51,10 @@ jobs:
         # C:\Program Files (x86)\NSIS but does not refresh the
         # PATH for subsequent steps in the same job. Use the
         # full path so PowerShell can find the executable.
-        # Also explicitly cd to the workspace because PowerShell's
-        # default working directory is not always the checkout root.
-        run: '& "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=$env:VERSION /DDIST_DIR=dist packaging/windows/MIDIMischief.nsi'
+        # NSIS resolves File source paths relative to the .nsi
+        # script's directory, not cwd, so we pass an absolute
+        # DIST_DIR to make the path unambiguous.
+        run: '& "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=$env:VERSION /DDIST_DIR=$env:GITHUB_WORKSPACE\dist packaging/windows/MIDIMischief.nsi'
         working-directory: ${{ github.workspace }}
       - name: Create macOS DMG
         if: runner.os == 'macOS'

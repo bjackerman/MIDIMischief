@@ -1,11 +1,11 @@
 ; Build with: makensis /DVERSION=0.1.0 /DDIST_DIR=dist MIDIMischief.nsi
 ;
-; Note: the .nsi paths are written with single backslashes here. NSIS
-; treats ${VAR}\\file as "VAR with trailing backslash" + "file", which
-; makes the path a UNC path on Windows (e.g. \\server\share). The fix
-; used to be: use forward slashes everywhere. The cleaner fix used
-; here: define DIST_DIR with a trailing backslash, and reference
-; ${DIST_DIR}file without an extra separator.
+; The File source paths are resolved relative to the directory NSIS
+; was invoked from (not the .nsi file's directory). The CI workflow
+; cd's to ${{ github.workspace }} before running this, so relative
+; paths like "dist\MIDIMischief.exe" are correct. If you invoke
+; makensis from any other directory, either pass the absolute
+; DIST_DIR or invoke from the repo root.
 Unicode True
 !include "MUI2.nsh"
 
@@ -15,12 +15,9 @@ Unicode True
 !ifndef DIST_DIR
 !define DIST_DIR "dist"
 !endif
-!ifndef DIST_DIR_SLASH
-!define DIST_DIR_SLASH "${DIST_DIR}\"
-!endif
 
 Name "MIDIMischief"
-OutFile "${DIST_DIR_SLASH}MIDIMischief-${VERSION}-windows-x64-setup.exe"
+OutFile "${DIST_DIR}\MIDIMischief-${VERSION}-windows-x64-setup.exe"
 InstallDir "$PROGRAMFILES64\MIDIMischief"
 RequestExecutionLevel admin
 
@@ -32,7 +29,7 @@ RequestExecutionLevel admin
 
 Section "MIDIMischief" SecMain
   SetOutPath "$INSTDIR"
-  File "${DIST_DIR_SLASH}MIDIMischief.exe"
+  File "${DIST_DIR}\MIDIMischief.exe"
   CreateDirectory "$SMPROGRAMS\MIDIMischief"
   CreateShortcut "$SMPROGRAMS\MIDIMischief\MIDIMischief.lnk" "$INSTDIR\MIDIMischief.exe" "gui"
   CreateShortcut "$DESKTOP\MIDIMischief.lnk" "$INSTDIR\MIDIMischief.exe" "gui"
