@@ -47,7 +47,11 @@ jobs:
       - name: Create Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
-        run: makensis /DVERSION=$env:VERSION /DDIST_DIR=dist packaging/windows/MIDIMischief.nsi
+        # The choco install step puts makensis under
+        # C:\Program Files (x86)\NSIS but does not refresh the
+        # PATH for subsequent steps in the same job. Use the
+        # full path so PowerShell can find the executable.
+        run: '& "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=$env:VERSION /DDIST_DIR=dist packaging/windows/MIDIMischief.nsi'
       - name: Create macOS DMG
         if: runner.os == 'macOS'
         run: bash packaging/macos/create_dmg.sh
