@@ -44,6 +44,13 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: choco install nsis -y --no-progress
+      - name: Verify dist directory exists
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Write-Host "cwd: $(Get-Location)"
+          Write-Host "dist contents:"
+          if (Test-Path dist) { Get-ChildItem dist | Format-Table -AutoSize | Out-String | Write-Host } else { Write-Host "  (missing)" }
       - name: Create Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
@@ -51,7 +58,10 @@ jobs:
         # C:\Program Files (x86)\NSIS but does not refresh the
         # PATH for subsequent steps in the same job. Use the
         # full path so PowerShell can find the executable.
+        # Also explicitly cd to the workspace because PowerShell's
+        # default working directory is not always the checkout root.
         run: '& "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=$env:VERSION /DDIST_DIR=dist packaging/windows/MIDIMischief.nsi'
+        working-directory: ${{ github.workspace }}
       - name: Create macOS DMG
         if: runner.os == 'macOS'
         run: bash packaging/macos/create_dmg.sh
