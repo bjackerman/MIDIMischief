@@ -44,13 +44,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: choco install nsis -y --no-progress
-      - name: Verify dist directory exists
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Write-Host "cwd: $(Get-Location)"
-          Write-Host "dist contents:"
-          if (Test-Path dist) { Get-ChildItem dist | Format-Table -AutoSize | Out-String | Write-Host } else { Write-Host "  (missing)" }
       - name: Create Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
